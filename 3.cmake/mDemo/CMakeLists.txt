@@ -3,10 +3,47 @@
 ###############################################
 
 #指定运行此配置文件所需的 CMake 的最低版本
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
+CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 
-#项目名称
-PROJECT(mDemoPrj)
+# 项目名称
+# 基本语法
+#   project(<PROJECT-NAME>
+#           [VERSION <major>[.<minor>[.<patch>[.<tweak>]]]]
+#           [DESCRIPTION <project-description-string>]
+#           [HOMEPAGE_URL <url-string>]
+#           [LANGUAGES <language-name>...])
+#
+# 参数说明
+# 1. PROJECT-NAME (必需):
+#   指定项目名称
+#   名称会被存储在变量PROJECT_NAME和CMAKE_PROJECT_NAME中
+# 2. VERSION (可选):
+#   指定项目版本号，格式为major.minor.patch.tweak
+#   会设置以下变量:
+#     PROJECT_VERSION, PROJECT_VERSION_MAJOR, PROJECT_VERSION_MINOR,
+#     PROJECT_VERSION_PATCH, PROJECT_VERSION_TWEAK
+#   以及对应的<PROJECT-NAME>_VERSION系列变量
+# 3. DESCRIPTION (可选):
+#   项目的简短描述
+#   存储在PROJECT_DESCRIPTION变量中
+# 4. HOMEPAGE_URL (可选):
+#   项目主页URL
+#   存储在PROJECT_HOMEPAGE_URL变量中
+# 5. LANGUAGES (可选):
+#   指定项目使用的编程语言，如C, CXX, Fortran等
+#   默认包含C和CXX
+#   如果指定此参数，则只启用指定的语言
+#
+# 重要变量
+#   PROJECT命令会设置以下变量:
+#   PROJECT_NAME: 当前项目名称
+#   PROJECT_SOURCE_DIR: 项目源目录
+#   PROJECT_BINARY_DIR: 项目构建目录
+#   PROJECT_VERSION系列变量(如果指定了VERSION)
+#   CMAKE_PROJECT_NAME: 顶层项目名称
+#   <PROJECT-NAME>_SOURCE_DIR和<PROJECT-NAME>_BINARY_DIR
+
+PROJECT(mDemoPrj C)
 
 SET (Demo_VERSION_MAJOR 3)
 SET (Demo_VERSION_MINOR 6)
@@ -38,29 +75,68 @@ MESSAGE(STATUS "current time: ${current_time}")
 # 和一个空格。所有其他消息类型都发送到stderr，并且不带连字符前缀。
 MESSAGE(STATUS "-------- MAIN CMAKELISTS MSG --------")
 
-# 存放cmake指令指向的 CMakeLists.txt 的路径变量:
-#     PROJECT_SOURCE_DIR
-#     <projectname>_SOURCE_DIR
-# 用户执行cmake指令的路径:
-#     PROJECT_BINARY_DIR
-#     <projectname>_BINARY_DIR
-# CMAKE_CURRENT_LIST_FILE: 输出调用这个变量的 CMakeLists.txt 的完整路径
-# CMAKE_CURRENT_LIST_LINE：输出这个变量所在的行
-# CMAKE_CURRENT_SOURCE_DIR：当前处理的 CMakeLists.txt 所在的路径
-# CMAKE_CURRENT_BINARY_DIR：如果是 in-source 编译，它跟 CMAKE_CURRENT_SOURCE_DIR
-#                            一致，如果是 out-of-source编译，他指的是 target 编译目录。
-# CMAKE_CURRENT_BINARY_DIR 和 CMAKE_CURRENT_SOURCE_DIR 是面向 CMakeLists.txt
-#     文件的源和目标根目录，而不像 PROJECT_SOURCE_DIR 和 PROJECTE_BINARY_DIR
-#     是面向整个项目的源和目标的根目录
-# CMAKE_MODULE_PATH：这个变量用来定义自己的 cmake 模块所在的路径。如果你的工程比较
-#                    复杂，有可能会自己编写一些 cmake 模块，这些 cmake 模块是随你的
-#                    工程发布的，为了让 cmake 在处理CMakeLists.txt 时找到这些模块。
+# --> 项目级目录变量（全局作用域） <--
+# CMAKE_SOURCE_DIR
+#   含义：顶层 CMake 项目的源代码目录
+#   是否依赖project()： ❌ 不依赖
+#   常见使用场景：整体构建系统中使用
+# CMAKE_BINARY_DIR
+#   含义：顶层构建输出目录
+#   是否依赖project()： ❌ 不依赖
+#   常见使用场景：设置全局构建输出
+# PROJECT_SOURCE_DIR
+#   含义：项目的源代码根目录（顶层 CMakeLists.txt 所在目录）
+#         当前调用 project() 的目录（源）
+#         无论在哪个CmakeList.txt里全局一致
+#   是否依赖project()： ✅ 依赖
+#   常见使用场景：适用于子项目
+#   示例用途：添加全局头文件搜索路径、资源路径等
+# <projectname>_SOURCE_DIR
+#   含义：与 PROJECT_SOURCE_DIR 相同，<projectname> 为 project() 中定义的名称
+#         无论在哪个CmakeList.txt里全局一致
+#   示例用途：多项目工程中区分各子项目的源目录
+# PROJECT_BINARY_DIR
+#   含义：构建输出的根目录（即你执行 cmake 命令时指定的 build 目录）
+#          当前调用 project() 的构建目录
+#         无论在哪个CmakeList.txt里全局一致
+#   是否依赖project()： ✅ 依赖
+#   常见使用场景：子项目的构建根目录
+#   示例用途：配置输出路径、生成中间文件等
+# <projectname>_BINARY_DIR
+#   含义：与 PROJECT_BINARY_DIR 类似，带有项目名前缀
+#         无论在哪个CmakeList.txt里全局一致
+#   示例用途：用于区分多项目的构建目录
+#
+# --> 当前 CMakeLists.txt 所在目录变量（局部作用域） <--
+# CMAKE_CURRENT_SOURCE_DIR
+#   含义：当前正在处理的 CMakeLists.txt 所在的源代码路径
+#   说明：每次进入 add_subdirectory() 都会变化
+# CMAKE_CURRENT_BINARY_DIR
+#   含义：当前 CMakeLists.txt 的对应构建目录
+#         如果是 in-source 编译，它跟 CMAKE_CURRENT_SOURCE_DIR一致
+#         如果是 out-of-source编译，他指的是 target 编译目录
+#   说明：in-source 构建时与 CMAKE_CURRENT_SOURCE_DIR 一致，out-of-source 时不同
+# CMAKE_CURRENT_* 变量是 相对于每一个 CMakeLists.txt 文件而言的，适合模块化项目结构。
+#
+# --> 辅助调试相关变量 <--
+# CMAKE_CURRENT_LIST_FILE
+#   含义：当前被执行的 CMakeLists.txt 文件的完整路径（含文件名）
+# CMAKE_CURRENT_LIST_LINE
+#   含义：当前正在处理的这一行所在的行号
+#
+# --> 自定义模块搜索路径 <--
+# CMAKE_MODULE_PATH
+#   含义：设置 CMake 查找 .cmake 模块文件的路径列表，例如 find_package() 时的搜索路径
+#   例如：list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+#         include(MyTools)
 
 # 需要通过 SET 指令，将自己的 cmake 模块路径设置一下。注意，CMAKE_MODULE_PATH 有
 # 高优先级，当需要重写标准Find<package>.cmake文件时可能很有用。
-MESSAGE(STATUS "    PROJECT_SOURCE_DIR: " ${PROJECT_SOURCE_DIR})
+MESSAGE(STATUS "    CMAKE_SOURCE_DIR:    " ${CMAKE_SOURCE_DIR})
+MESSAGE(STATUS "    CMAKE_BINARY_DIR:    " ${CMAKE_BINARY_DIR})
+MESSAGE(STATUS "    PROJECT_SOURCE_DIR:  " ${PROJECT_SOURCE_DIR})
 MESSAGE(STATUS "    mDemoPrj_SOURCE_DIR: " ${mDemoPrj_SOURCE_DIR})
-MESSAGE(STATUS "    PROJECT_BINARY_DIR: " ${PROJECT_BINARY_DIR})
+MESSAGE(STATUS "    PROJECT_BINARY_DIR:  " ${PROJECT_BINARY_DIR})
 MESSAGE(STATUS "    mDemoPrj_BINARY_DIR: " ${mDemoPrj_BINARY_DIR})
 MESSAGE(STATUS "    CMAKE_ROOTR: " ${CMAKE_ROOT})
 MESSAGE(STATUS "    CMAKE_CURRENT_LIST_FILE: " ${CMAKE_CURRENT_LIST_FILE})
@@ -74,105 +150,11 @@ SET(ENV{HOME} "new home name")
 MESSAGE(STATUS "    after set, HOME dir: $ENV{HOME}")
 MESSAGE(STATUS "-------- SET/GET ENV END --------")
 
-MESSAGE(STATUS "-------- EXEC SHELL CMD --------")
-
-# 使用 ALL 关键字意味着这个自定义目标将作为默认构建目标的一部分被执行
-# 如果只想在显式请求时才运行这个目标，可以省略 ALL
-# 显式执行的方法为：执行cmake之后，显式执行：make my_custom_target
-ADD_CUSTOM_TARGET(my_custom_target ALL
-    # 当这个目标被构建时，会执行下面的 COMMAND
-    COMMAND ${CMAKE_COMMAND} -E echo "My custom target is running!"
-    # 这是一个可选的 COMMENT，它将在构建时显示在控制台中
-    COMMENT "Running a custom target"
-    # VERBATIM 选项告诉 CMake 不要对 COMMAND 进行任何解释或转义
-    VERBATIM
-)
-# 如果想要让这个自定义目标成为默认构建目标（即，当只运行 'make' 或 'cmake --build .' 时），
-# 可以添加一个 ALL 依赖。但注意，这通常不是推荐的做法，除非自定义目标是项目构建流程
-# 的核心部分。这个方法不好用，可能是cmake不支持，需要的话建议直接在 add_custim_target
-# 中添加 ALL
-# add_dependencies(ALL my_custom_target)
-
-
-# add_custom_command 在 CMake 中通常用于向特定的目标（如可执行文件、库或自定义目标）
-# 添加自定义构建规则。
-# 在 add_custom_command 的使用中，不能同时指定 TARGET 和 OUTPUT ，除非它们是在
-# add_custom_command 的不同参数中使用的。在 add_custom_command 的上下文中，TARGET
-# 参数通常用于将自定义命令与现有的目标（如可执行文件或库）关联起来，而 OUTPUT 参数
-# 则用于指定自定义命令生成的输出文件。
-# 如果这个自定义命令是某个目标的一部分，你需要将它添加到该目标的依赖中
-# 例如，你可以使用 add_dependencies() 来添加一个依赖
-ADD_CUSTOM_COMMAND(
-    COMMAND ${CMAKE_COMMAND} -E echo "My custom command(TARGET) is running!"
-    COMMENT "Running a custom command(TARGET)"
-    VERBATIM
-    # 将此自定义命令与 generate_header 目标关联起来
-    TARGET my_custom_target
-)
-
-SET(M_CUSTOM_FILE ${CMAKE_CURRENT_BINARY_DIR}/custom_command.h)
-# FILE(WRITE ${M_CUSTOM_FILE} "")
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${M_CUSTOM_FILE}
-    COMMAND ${CMAKE_COMMAND} -E echo "My custom command(OUTPUT) is running!" # > ${M_CUSTOM_FILE}
-    COMMENT "Running a custom command(OUTPUT)"
-    VERBATIM
-)
-# 创建一个自定义目标，该目标依赖于生成的文件
-ADD_CUSTOM_TARGET(generate_file ALL DEPENDS ${M_CUSTOM_FILE})
-
-
-MESSAGE(STATUS "-------- EXEC SHELL CMD END --------")
-
-
-MESSAGE(STATUS "-------- FILE OPT --------")
-# 创建一个目录
-FILE(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/my_directory)
-FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/my_directory/file_opt.txt "write to file\n")
-FILE(READ ${CMAKE_CURRENT_BINARY_DIR}/my_directory/file_opt.txt READ_MSG)
-MESSAGE(STATUS "READ FROM FILE: ${READ_MSG}")
-# FILE(APPEND filename "String to append")
-# FILE(COPY source destination)
-# FILE(RENAME source destination)
-# FILE(REMOVE [file1 ...])
-# FILE(REMOVE_RECURSE [dir1 ...])
-# # 执行系统命令
-# FILE(EXPR output variable operation)
-# # 获取文件大小
-# FILE(SIZE filename variable)
-# # 获取文件权限
-# FILE(GET_RUNTIME_DEPENDENCIES variable dependencies)
-# # 遍历目录
-# FILE(GLOB variable [RELATIVE path] [globbing expressions]...)
-# FILE(GLOB_RECURSE variable [RELATIVE path] [globbing expressions]...)
-# # 创建列表文件
-# FILE(CONFIGURE OUTPUT output_file CONTENT content)
-
-MESSAGE(STATUS "-------- FILE OPT END --------")
-
-MESSAGE(STATUS "-------- DIRPROPERTY --------")
-# GET_DIRECTORY_PROPERTY 获取的常见目录属性：
-#   COMPILE_DEFINITIONS：获取当前目录下定义的编译器宏，这些宏会添加到编译命令中。
-#   COMPILE_OPTIONS：获取当前目录下添加的编译器选项。
-#   INCLUDE_DIRECTORIES：获取当前目录下设置的包含目录，用于头文件的搜索。
-#   LINK_DIRECTORIES：获取当前目录下设置的链接目录，用于库文件的搜索。
-#   DEFINITIONS：获取当前目录下定义的宏，包括编译器和链接器宏。
-#   LINK_LIBRARIES：获取当前目录下链接的库列表。
-#   DEFINED_VARIABLES：获取当前目录下定义的 CMake 变量列表。
-#   ADDITIONAL_MAKE_CLEAN_FILES：获取当前目录下指定的额外清理文件。
-#   SOURCE_FILES：获取当前目录下的源文件列表。
-#   HEADER_FILES：获取当前目录下的头文件列表。
-#   BINARY_DIR：获取当前目录的构建目录（通常是 CMakeFiles 目录）。
-#   DIRECTORY：获取当前目录的路径。
-#   CMAKE_INCLUDE_CURRENT_DIR：检查是否为当前目录设置了 INCLUDE_DIRECTORIES。
-#   CMAKE_MSVCIDE_RUN_PATH：获取 MSVC IDE 使用的运行路径。
-ADD_DEFINITIONS(-DMY_MACRO=1)
-GET_DIRECTORY_PROPERTY(CMP_DEFS COMPILE_DEFINITIONS)
-MESSAGE(STATUS "CMP_DEFS: " ${CMP_DEFS})
-
-GET_DIRECTORY_PROPERTY(M_BINARY_DIR BINARY_DIR)
-MESSAGE(STATUS "M_BINARY_DIR: " ${M_BINARY_DIR})
-MESSAGE(STATUS "-------- DIRPROPERTY END --------")
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/variable.cmake")
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/work_flow_ctrl.cmake")
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/func_macro.cmake")
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/custom.cmake")
+INCLUDE("${CMAKE_CURRENT_SOURCE_DIR}/cmake/utils.cmake")
 
 ###############################################
 # base options end
