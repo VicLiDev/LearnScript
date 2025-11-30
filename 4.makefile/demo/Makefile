@@ -1,31 +1,84 @@
-WK_DIR := $(CURDIR)
+###############################################################################
+# 通用 多目标 + 子目录 Makefile Demo
+###############################################################################
+
+# 工作目录
+WK_DIR       := $(CURDIR)
 CUR_MKF_FILE := $(lastword $(MAKEFILE_LIST))
-CUR_MKF_DIR := $(dir $(CUR_MKF_FILE))
-$(info cur wk dir  --> $(WK_DIR))
-$(info MKF LIST    --> $(MAKEFILE_LIST))
-$(info cur mkf dir --> $(CUR_MKF_DIR))
+CUR_MKF_DIR  := $(dir $(CUR_MKF_FILE))
 
-FLAGS = -Wall -Wextra
-# 生成多个可执行文件
-TARGETs = $(CUR_MKF_DIR)/test $(CUR_MKF_DIR)/test2
-SUBDIRs = $(CUR_MKF_DIR)/subdir1 $(CUR_MKF_DIR)/subdir2
+# 打印信息
+$(info [WorkDir]  $(WK_DIR))
+$(info [Makefile] $(CUR_MKF_FILE))
+$(info [Mkf Dir ] $(CUR_MKF_DIR))
 
+###############################################################################
+# 基本设置
+###############################################################################
+
+CC      := gcc
+CFLAGS  := -Wall -Wextra
+MCRODEF := -DMCRO_DEMO -DMCRO_DEMO2=\"mcro2\"
+
+# 通用 include / lib 目录（可被所有 target 使用）
+INCLUDE_DIRS := $(CUR_MKF_DIR)/include \
+				/usr/local/include
+
+LIB_DIRS := $(CUR_MKF_DIR)/lib \
+			/usr/local/lib
+
+LIBS := m \
+		pthread
+
+# 转换为命令行形式
+CPPFLAGS += $(addprefix -I, $(INCLUDE_DIRS))
+LDFLAGS  += $(addprefix -L, $(LIB_DIRS))
+LDLIBS   += $(addprefix -l, $(LIBS))
+
+###############################################################################
+# 目录与目标定义
+###############################################################################
+
+# 源码目录（如果以后你想放到 src/ 可直接改这里）
+SRC_DIR := $(CUR_MKF_DIR)
+
+# 子目录
+SUBDIRS := $(CUR_MKF_DIR)/subdir1 \
+           $(CUR_MKF_DIR)/subdir2
+
+# 要生成的可执行文件
+TARGETS := $(CUR_MKF_DIR)/demo \
+           $(CUR_MKF_DIR)/demo2
+
+###############################################################################
+# 每个可执行文件的源文件定义
+###############################################################################
+
+# demo 目标的源文件
 # SRCs = $(wildcard *.c)
-SRCs = $(CUR_MKF_DIR)/mfunc.c \
-	   $(CUR_MKF_DIR)/mfunc2.c \
-	   $(CUR_MKF_DIR)/test.c
-OBJs = $(patsubst %.c, %.o, $(SRCs))
-DEPs = $(wildcard *.h)
-TARGET = $(CUR_MKF_DIR)/test
-MCRODEF = -D MCRO_TEST -DMCRO_TEST2=\"mcro2\"
+SRC_DEMO = $(CUR_MKF_DIR)/mfunc.c \
+		   $(CUR_MKF_DIR)/mfunc2.c \
+		   $(CUR_MKF_DIR)/demo.c
+OBJ_DEMO  := $(SRC_DEMO:.c=.o)
 
-SRCs2 = $(CUR_MKF_DIR)/mfunc.c \
-		$(CUR_MKF_DIR)/mfunc2.c \
-		$(CUR_MKF_DIR)/test2.c
-OBJs2 = $(patsubst %.c, %.o, $(SRCs2))
-DEPs2 = $(wildcard *.h)
-TARGET2 = $(CUR_MKF_DIR)/test2
+# demo2 目标的源文件
+SRC_DEMO2 := $(SRC_DIR)/mfunc.c \
+             $(SRC_DIR)/mfunc2.c \
+             $(SRC_DIR)/demo2.c
+OBJ_DEMO2 := $(SRC_DEMO2:.c=.o)
 
+
+###############################################################################
+# 伪目标
+###############################################################################
+
+.PHONY: all clean $(SUBDIRS)
+
+all: $(TARGETS) $(SUBDIRS)
+
+###############################################################################
+# 链接规则（每个可执行文件独立配置）
+###############################################################################
 # $@ 在模式规则中，表示规则中的目标文件集。如果有多个目标，那么，"$@"就是匹配
 #    目标中模式定义的集合。
 # $< 依赖目标中的第一个目标名字。如果依赖目标是以模式（即"%"）定义的，那么"$<"将
@@ -55,24 +108,26 @@ TARGET2 = $(CUR_MKF_DIR)/test2
 # 	@echo '^: '$^
 # 	@echo '<: '$<
 
+# demo 可执行文件
+$(CUR_MKF_DIR)/demo: $(OBJ_DEMO)
+	$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
+# demo2 可执行文件
+$(CUR_MKF_DIR)/demo2: $(OBJ_DEMO2)
+	$(CC) -o $@ $^ $(LDFLAGS) $(LDLIBS)
 
-.PHONY : all $(SUBDIRs)
-all : $(TARGETs) $(SUBDIRs)
+###############################################################################
+# 通用编译规则（使用 pattern rule）
+###############################################################################
 
-$(TARGET) : $(OBJs)
-	gcc -o $@ $^
+# 将所有 .c 编译成 .o
 
-$(OBJs) :
-	gcc $(MCRODEF) -c $(subst .o,.c,$@) -o $@
+%.o: %.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(MCRODEF) -c $< -o $@
 
-$(TARGET2) : $(OBJs2)
-	gcc -o $@ $^
-
-$(OBJs2) :
-	gcc $(MCRODEF) -c $(subst .o,.c,$@) -o $@
-
-
+###############################################################################
+# 子目录递归构建
+###############################################################################
 # 在一个主 Makefile 中执行子目录中的 Makefile，你可以使用 make -C 命令，它会切换
 # 到子目录执行那个目录下的 Makefile。
 #
@@ -80,14 +135,30 @@ $(OBJs2) :
 # 标志 -j）
 #
 # make -f 是 make 命令的一个选项，用来指定使用哪个 Makefile 文件来执行构建任务。
-$(SUBDIRs):
+
+$(SUBDIRS):
 	$(MAKE) -C $@
 
-.PHONY : clean
-clean :
-	-rm $(OBJs)
-	-rm $(OBJs2)
-	-rm $(TARGETs)
-	@for dir in $(SUBDIRs); do \
-		$(MAKE) -C $$dir clean; \
+###############################################################################
+# 运行测试
+###############################################################################
+.PHONY: tests
+tests: $(TARGETS)
+	@echo "=== Running all tests ==="
+	@for t in $(TARGETS); do \
+		echo "-- Running $$t"; \
+		$$t; \
+		echo ""; \
 	done
+
+###############################################################################
+# 清理
+###############################################################################
+
+clean:
+	$(RM) $(OBJ_DEMO) $(OBJ_DEMO2)
+	$(RM) $(TARGETS)
+	@for d in $(SUBDIRS); do \
+		$(MAKE) -C $$d clean; \
+	done
+
