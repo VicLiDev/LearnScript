@@ -7,9 +7,9 @@ AUX_SOURCE_DIRECTORY(. DIR_LIB_SRCS_MATH)
 # 生成链接库 通过add_library指定库的名字，生成之后名字会变成 lib<name>.<a/so>
 # STATIC/SHARED/MODULE  静态库/共享库/在使用dyld的系统有效，如果不支持dyld，则被当作SHARD对待
 # 如果希望输出的多个库名字一样，参考 SET_TARGET_PROPERTIES 指令的用法
-ADD_LIBRARY (mathFunctions STATIC ${DIR_LIB_SRCS_MATH})
-ADD_LIBRARY (mathFunctions2 SHARED ${DIR_LIB_SRCS_MATH})
-ADD_LIBRARY (mathFunctions3 MODULE ${DIR_LIB_SRCS_MATH})
+ADD_LIBRARY(mathFunctions STATIC ${DIR_LIB_SRCS_MATH})
+ADD_LIBRARY(mathFunctions2 SHARED ${DIR_LIB_SRCS_MATH})
+ADD_LIBRARY(mathFunctions3 MODULE ${DIR_LIB_SRCS_MATH})
 # 另外还可以是 OBJECT 类型，一个OBJECT库类型定义了一系列从源码编译得来的object文件，
 # object文件集合可以通过$<TARGET_OBJECT:name>语法来作为其他target的输入
 # 这是一个生成表达式可以用来给其他target提供OBJECT库：

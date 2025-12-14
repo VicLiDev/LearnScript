@@ -699,7 +699,14 @@ INSTALL(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 # 原始方法
 # 使用外部库最基础的写法是需要以下三个部分
 #     1. INCLUDE_DIRECTORIES  对应 gcc/g++ 的 -I 参数，写在顶层主调 CMakeLists.txt 中就可以，
-#        可以传递到子文件夹中
+#        可以传递到子文件夹中，作用于全局
+#        也可以使用 target_include_directories，功能类似 INCLUDE_DIRECTORIES，
+#        作用于单个 target，可控性更高
+#        target_include_directories(<target> <INTERFACE|PUBLIC|PRIVATE> <dirs...>)
+#        <target>：目标名称（例如你的可执行文件或库名）
+#        <dirs...>：头文件路径列表
+#        <INTERFACE|PUBLIC|PRIVATE>：可选，控制访问权限
+#        例如： target_include_directories(demo PRIVATE ${CMAKE_SOURCE_DIR}/include)
 #     2. LINK_DIRECTORIES 对应 gcc/g++ 的 -L 参数,指定库文件的路径
 #     3. TARGET_LINK_LIBRARIES 对应 gcc/g++ 的 -l 参数，为了方便使用可以在第2步之后
 #        使用一个变量保存用到的库 (SET(......))
