@@ -628,7 +628,132 @@ message(STATUS "MY_VARIABLE: ${MY_VARIABLE}")
 
 # 指定生成目标
 # ADD_EXECUTABLE(Demo ${DIR_SRCS})
-# TARGET_LINK_LIBRARIES (Demo  ${EXTRA_LIBS})
+# TARGET_LINK_LIBRARIES (Demo [PRIVATE|PUBLIC|INTERFACE] ${EXTRA_LIBS})
+# PRIVATE / PUBLIC / INTERFACE 是“依赖的可见性（传递性）”，非常重要但也很容易混淆。
+# 不写 PRIVATE/PUBLIC/INTERFACE 时，默认为 PUBLIC，建议不要省略
+# 一句话总结：
+#   它决定了：
+#   这个库 自己要不要用
+#   依赖它的目标要不要“继承”这个库
+# PRIVATE
+#   ex: target_link_libraries(A PRIVATE B)
+#   含义：
+#     A 自己在编译/链接时需要 B
+#     依赖 A 的目标不需要也看不到 B
+#   不向外传播
+#   典型场景：
+#     实现细节
+#     内部使用的库
+#     .cpp 里用到，但 .h 里没暴露
+# PUBLIC
+#   ex: target_link_libraries(A PUBLIC B)
+#   含义：
+#     A 自己需要 B
+#     依赖 A 的目标也需要 B
+#   向外传播
+#   典型场景：
+#     B 的类型、接口出现在 A 的头文件里
+#     继承关系、参数类型、返回值
+# INTERFACE
+#   ex: target_link_libraries(A INTERFACE B)
+#   含义：
+#     A 自己 不使用 B
+#     依赖 A 的目标需要 B
+#   只传播，不自己用
+#   典型场景：
+#     Header-only 库
+#     纯接口库
+#     编译选项/宏集合
+#
+# 用表格理解（非常重要）
+# | 关键字    | A 自己用 | 依赖 A 的目标用 |
+# | --------- | -------- | --------------- |
+# | PRIVATE   | ✅       | ❌              |
+# | PUBLIC    | ✅       | ✅              |
+# | INTERFACE | ❌       | ✅              |
+# 举例：
+#   find_package(Threads REQUIRED)
+#
+#   target_link_libraries(mpp_eventfd_test PRIVATE Threads::Threads)
+#   target_link_libraries(mpp_thread_test  PRIVATE Threads::Threads)
+#   target_link_libraries(mpp_runtime_test PRIVATE Threads::Threads)
+#   # Threads::Threads 会自动在 ARM 交叉编译下选择正确的 -pthread
+
+
+# 关于 Threads::Threads
+# Threads::Threads 是 CMake 提供的一个 IMPORTED INTERFACE target
+# 它不是一个真实的库文件，而是：
+#   一组编译选项
+#   一组链接选项
+#   一组平台差异的抽象
+#
+# pthread 在不同平台根本不一样，这是 Threads::Threads 存在的根本原因。
+#   Linux（glibc）
+#     -pthread        # 不是 -lpthread
+#   Linux（某些 toolchain）
+#     -lpthread
+#   musl
+#     -pthread
+#   macOS
+#     # 什么都不用
+#   Windows
+#     Win32 threads
+#   如果写死 -lpthread，跨平台必炸
+# CMake 早期是怎么做的（老方式）
+#   find_package(Threads)
+#   target_link_libraries(foo ${CMAKE_THREAD_LIBS_INIT})
+#   问题：
+#     ${CMAKE_THREAD_LIBS_INIT} 是字符串
+#     可能是：
+#       -pthread
+#       -lpthread
+#       空
+#     不会自动传播
+#     不参与 target 依赖图
+#     OBJECT / INTERFACE / PRIVATE / PUBLIC 全废
+# Threads::Threads 是什么（本质）
+#   当写： find_package(Threads REQUIRED)
+#   CMake 在内部做了三件事：
+#   ① 探测系统线程模型
+#     能不能用 -pthread
+#     要不要 -lpthread
+#     是否需要额外 flags
+#   ② 创建一个 imported target
+#     Threads::Threads
+#     它是：
+#       IMPORTED
+#       INTERFACE
+#     没有源码
+#     没有 .a / .so
+#     只有“属性”
+#   ③ 往 target 里塞属性
+#     类似这样（概念化）：
+#       set_target_properties(Threads::Threads PROPERTIES
+#           INTERFACE_COMPILE_OPTIONS "-pthread"
+#           INTERFACE_LINK_OPTIONS    "-pthread"
+#       )
+#     或在某些平台：
+#       INTERFACE_LINK_LIBRARIES pthread
+# 为什么用 target，而不是变量？
+#   这是现代 CMake 的核心思想。
+#   变量（旧世界）
+#     set(CMAKE_C_FLAGS "-pthread")
+#     全局污染
+#     顺序敏感
+#     无法传播
+#     OBJECT library 无效
+#     PRIVATE / PUBLIC 无效
+#   target（新世界）
+#     target_link_libraries(osal PUBLIC Threads::Threads)
+#     意味着：
+#       “任何链接 osal 的 target
+#       都必须继承 pthread 的完整编译+链接语义”
+#     ✔ 自动传播
+#     ✔ 可组合
+#     ✔ 可推导
+#     ✔ 可裁剪
+
+
 
 # SET(<VAR> -) 主调用CMakeLists.txt文件通过SET设置的变量可以传递到子目录的CMakeLists.txt中，
 # 但反过来不行,无论在 ADD_SUBDIRECTORY 之前还是之后
