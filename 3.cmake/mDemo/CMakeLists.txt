@@ -753,6 +753,42 @@ message(STATUS "MY_VARIABLE: ${MY_VARIABLE}")
 #     ✔ 可推导
 #     ✔ 可裁剪
 
+# 关于 CMAKE_THREAD_LIBS_INIT
+# 它是 CMake 早期的线程支持机制（老写法）
+# 当调用：find_package(Threads)
+# CMake 会自动设置一些变量，其中最重要的是：
+#   CMAKE_THREAD_LIBS_INIT
+#   CMAKE_HAVE_THREADS_LIBRARY
+#   CMAKE_USE_PTHREADS_INIT
+# CMAKE_THREAD_LIBS_INIT 包含 链接 pthread 所需的选项：
+#   可能是 -lpthread
+#   或 -pthread
+#   具体取决于平台和工具链
+# 这个变量是 字符串，不是 target，所以它不能传播依赖。
+#
+# 基本用法（老写法）
+#   find_package(Threads REQUIRED)
+#   add_executable(myapp main.c)
+#   # 链接 pthread
+#   target_link_libraries(myapp ${CMAKE_THREAD_LIBS_INIT})
+# 在 Linux 上，${CMAKE_THREAD_LIBS_INIT} 通常展开成 -pthread
+# 在 Windows 上可能为空（因为 Windows API 自带线程）
+#
+# 和现代 CMake Threads::Threads 的区别
+# | 特性                | CMAKE_THREAD_LIBS_INIT     | Threads::Threads                 |
+# | ------------------- | -------------------------- | -------------------------------- |
+# | 类型                | 字符串                     | IMPORTED INTERFACE target        |
+# | 可传播性            | ❌ 需要手动传给每个 target | ✅ PUBLIC / INTERFACE 会自动传播 |
+# | 平台适配            | ⚠️ 需要自己保证             | ✅ CMake 内部处理                |
+# | OBJECT library 支持 | ❌ 无法自动                | ✅ 可以通过 INTERFACE 传播       |
+# | 推荐程度            | 不推荐                     | ✅ 推荐（现代 CMake）            |
+#
+# 老写法的注意点
+# 如果用 ${CMAKE_THREAD_LIBS_INIT}，每个 target 都要手动 link，否则可能出现链接错误：
+#   target_link_libraries(utils ${CMAKE_THREAD_LIBS_INIT})
+#   # 如果 utils 是 OBJECT library，这条 link 是无效的
+# 对 OBJECT library 无效，因为它没有链接阶段
+# 对 PRIVATE / PUBLIC 依赖 也不能传播
 
 
 # SET(<VAR> -) 主调用CMakeLists.txt文件通过SET设置的变量可以传递到子目录的CMakeLists.txt中，
