@@ -271,6 +271,249 @@ SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 ###############################################
 
 ###############################################
+# 依赖关系
+###############################################
+
+# CMake 不会自动理解代码逻辑依赖，它只认识三类东西：
+# 1. 目标（target）
+#    add_library
+#    add_executable
+# 2. 目标之间的依赖
+#    target_link_libraries
+#    add_dependencies
+# 3. 目标的输入文件
+#    .cpp / .c / .h / generated files
+# 只要某个源文件不属于某个 target：
+# 无论怎么改，它都不会触发该 target 的重编译或重新链接
+#
+# CMake 的构建单位是「target」，不是文件
+# CMake 的核心不是“文件列表”，而是 target graph（目标依赖图）。
+# 每个 target 包含：
+#   target
+#    ├── sources (*.c/*.cpp)
+#    ├── compile options
+#    ├── include dirs
+#    └── link dependencies (依赖的其他 target)
+# 构建系统只关心：这个 target 的输入是否发生变化
+
+
+# target_link_libraries：核心依赖机制
+# 基本用法（依赖建模）
+#   add_library(core ...)
+#   add_library(utils ...)
+#   add_library(mylib ...)
+#
+#   target_link_libraries(mylib
+#       PRIVATE utils
+#       PUBLIC  core
+#   )
+# | 关键字    | 含义                             |
+# | --------- | -------------------------------- |
+# | PRIVATE   | 只在 mylib 内部使用              |
+# | PUBLIC    | mylib 使用，mylib 的使用者也使用 |
+# | INTERFACE | mylib 不用，只传播给使用者       |
+# 这套规则 同时适用于：
+#   target_link_libraries
+#   target_include_directories
+#   target_compile_options
+#   target_sources
+#
+# 什么时候需要 add_dependencies？
+# 几乎不需要
+# 只有在以下情况才用：
+#   自定义命令生成文件
+#   非 link 的构建顺序
+#       add_custom_target(gen_code ...)
+#       add_library(mylib a.cpp generated.cpp)
+#       add_dependencies(mylib gen_code)
+#   不要用 add_dependencies 代替 target_link_libraries
+
+
+# 常见问题：第一次能进 ELF，后续修改不生效，看起来没有重新 link
+# 这说明一件事：CMake/构建系统认为“没有任何会影响最终 ELF 的输入发生变化”
+# 这通常意味着：
+#   文件没在 target 里
+#   target 的依赖关系断了
+#   link 输入没有变化
+
+
+# target_sources：向 target 注入源文件
+# 给“已经存在的 target”动态追加源文件，并把这些文件正式纳入
+#   target_sources(my_target PRIVATE a.c b.c)
+#   等价于：
+#   add_library(my_target a.c b.c)
+#   但前者更灵活
+#
+# target_sources 的高级用法
+# 条件源文件（推荐方式）
+#   target_sources(hal_h265d_api
+#       PRIVATE
+#           $<$<BOOL:${HAVE_VDPU341}>:hal_h265d_rkv.c>
+#           $<$<BOOL:${HAVE_VDPU34X}>:hal_h265d_vdpu34x.c>
+#   )
+#   优势（非常关键）
+#       条件在 generate 阶段生效
+#       不需要重新 cmake
+#       修改宏定义 → 自动触发重建
+# 分模块向同一个 target 注入源码
+#   # module A
+#   target_sources(core PRIVATE a1.c a2.c)
+#   # module B
+#   target_sources(core PRIVATE b1.c)
+#   这是大型工程（LLVM、Qt、Linux toolchain）的常用模式
+
+
+# OBJECT library：只编译、不链接
+# OBJECT library 是：
+# 一组“只负责编译、不参与链接”的 target
+# 它的产物是：
+#   .o / .obj
+#   不是 .a
+#   不是 .so
+#   不会 自动进 ELF
+# 这是设计如此，不是 bug
+#
+# 为什么 CMake 要设计 OBJECT library
+# 传统模型的问题: .c → .o → libxxx.a → ELF
+#   .a 是物理文件
+#   一个 .a 只能被“整体使用”
+#   同一份 .o 很难被多个目标共享
+# OBJECT library 的目标: .c → .o   （到此为止）
+#   然后：
+#   .o → ELF_A
+#   .o → ELF_B
+#   一份 object，可以被多个 ELF 使用
+#   不用生成中间的 .a
+#   在 HAL / codec / driver 这种工程里非常有价值
+#
+# OBJECT library 在 CMake 里的真实形态
+#   add_library(hal_h265d_api OBJECT a.c b.c)
+# CMake 内部做了什么？
+#   创建 target：hal_h265d_api
+#   该 target 的 唯一职责：
+#   把 a.c b.c 编译成 .o
+#   没有链接步骤
+#   到这里 ELF 完全不知道它的存在
+#
+# 那 ELF 是怎么“拿到”这些 .o 的
+#   通过 target_sources
+#       target_sources(app PRIVATE
+#           $<TARGET_OBJECTS:hal_h265d_api>
+#       )
+#   这句的真实含义
+#       “把 hal_h265d_api 这个 target 产生的 所有 .o 文件
+#       当作源文件，加入到 app 的链接过程中”
+#   注意：
+#       不是 link
+#       不是依赖
+#       是 直接把 .o 丢给 linker
+#
+# 为什么不能用 target_link_libraries
+# 如：target_link_libraries(app PRIVATE hal_h265d_api)
+# 这是无效的，因为：
+#   OBJECT library 没有 link interface
+#   没有 .a / .so
+#   linker 根本不知道怎么“link”它
+#   CMake 甚至会直接报错或忽略
+#
+# OBJECT library + target_sources = 完整链路
+#   正确的数据流是这样的：
+#   add_library(hal_h265d_api OBJECT a.c b.c)
+#               ↓
+#           编译生成 .o
+#               ↓
+#   target_sources(app PRIVATE $<TARGET_OBJECTS:hal_h265d_api>)
+#               ↓
+#           linker 直接吃 .o
+#               ↓
+#             ELF
+
+
+# target_link_libraries() 面对不同“target 类型 / 链接实体”时，
+# CMake 内部到底做了什么不同的事？
+#
+# target_link_libraries(A B) 的真正含义是：
+# A 依赖 B 的 link interface
+# 关键点是 link interface，不是“文件”。
+#
+# 不同 target 类型，在 link interface 上的区别
+# | 类型                   | 有 `.o` | 有 link step | 有 link interface | 能被 link |
+# | ---------------------- | ------- | ------------ | ----------------- | --------- |
+# | OBJECT library         | ✔       | ❌           | ❌                | ❌        |
+# | STATIC library (`.a`)  | ✔       | ✔            | ✔                 | ✔         |
+# | SHARED library (`.so`) | ✔       | ✔            | ✔                 | ✔         |
+# | INTERFACE library      | ❌      | ❌           | ✔                 | ✔（逻辑） |
+# 是否能作为 target_link_libraries 的 RHS，取决于：有没有 link interface
+#
+# OBJECT library：为什么不能 link？
+#   add_library(objlib OBJECT a.c b.c)
+#   target_link_libraries(app PRIVATE objlib)  # ❌
+# CMake 内部视角
+#   objlib 只有：.o
+#   没有 .a / .so
+#   linker 没有输入文件可以吃
+# 所以：
+#   target_link_libraries 对 OBJECT library 是无效的
+#   正确方式只能是：
+#       target_sources(app PRIVATE
+#           $<TARGET_OBJECTS:objlib>
+#       )
+#
+# STATIC library（.a）：最标准的 link 行为
+#   add_library(mylib STATIC a.c)
+#   target_link_libraries(app PRIVATE mylib)
+# CMake 做了什么？
+#   1. 编译 a.c → a.o
+#   2. ar 打包 → libmylib.a
+#   3. linker 阶段：app → libmylib.a
+# 关键特性
+#   按需提取 .o
+#   没用到的符号不会进 ELF
+#   link interface 里包含：
+#       include dirs
+#       link flags
+#       依赖的其他库
+#
+# SHARED library（.so）：运行时参与
+#   add_library(mylib SHARED a.c)
+#   target_link_libraries(app PRIVATE mylib)
+# 链接阶段
+#   linker 不把 .o 拷进 ELF
+#   只记录：
+#       NEEDED libmylib.so
+#       符号引用
+# 运行时
+#   动态加载 .so
+#   支持升级、替换
+# 但在 CMake 眼里：
+#   .a 和 .so 在 target_link_libraries 里几乎一样
+#
+# INTERFACE library：没有文件，但能“被 link”
+#   add_library(flags INTERFACE)
+#   target_link_libraries(app PRIVATE flags)
+# CMake 的处理
+#   没有任何文件参与 link
+#   只传播：
+#       编译选项
+#       include 路径
+#       link flags
+#       其他依赖
+# 这是 CMake 最抽象但最强大的类型
+#
+# target_link_libraries 在不同情况下的真实行为总结
+# | RHS 是            | 实际效果                     |
+# | ----------------- | ---------------------------- |
+# | OBJECT library    | ❌ 无效（无 link interface） |
+# | STATIC library    | link `.a`                    |
+# | SHARED library    | link `.so`                   |
+# | INTERFACE library | 只传播属性                   |
+
+
+###############################################
+# 依赖关系 end
+###############################################
+
+###############################################
 # work flow control
 ###############################################
 
