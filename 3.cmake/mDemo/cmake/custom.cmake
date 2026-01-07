@@ -1,12 +1,57 @@
 MESSAGE(STATUS "-------- EXEC CUSTOM CMD --------")
 
 # ----------------------------------------------------------------------------
-# ADD_CUSTOM_COMMAND
+# ADD_CUSTOM_TARGET
 # ----------------------------------------------------------------------------
-# 通过显式执行，可以看到这里的效果:
+# 通过显式执行，也可以看到这里的效果:
 # make my_custom_target
 # make generate_file
+
+# add_custom_target() 定义一个伪目标（并不会自动生成一个实际文件），通常用于封装
+# 执行 add_custom_command() 定义的命令结果，或者执行一些脚本/命令。
+# 语法结构：
+# add_custom_target(target_name
+#   [ALL]  # 可选：添加到默认构建目标
+#   [COMMAND cmd1 args1...]
+#   [DEPENDS dep1 dep2 ...]
+#   [WORKING_DIRECTORY dir]
+#   [COMMENT "message"]
+# )
+# 或者（常见组合用法）：
+# add_custom_target(my_target ALL
+#   DEPENDS my_module.ko
+# )
+# 这里不写 COMMAND，而是说：这个目标依赖于已被定义的 add_custom_command() 的输出文件。
 #
+# 二者结合使用：典型用法
+# 组合方式如下：
+#   add_custom_command(
+#     OUTPUT ${CMAKE_BINARY_DIR}/my_module.ko
+#     COMMAND make -C /lib/modules/$(uname -r)/build M=${CMAKE_CURRENT_SOURCE_DIR} modules
+#     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/my_module.c
+#     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+#   )
+#   add_custom_target(my_module ALL
+#     DEPENDS ${CMAKE_BINARY_DIR}/my_module.ko
+#   )
+# 当你运行 make 时，CMake 会自动：
+#   检查 .ko 文件是否存在或是否过期
+#   如果需要，就运行 make -C ... 命令来生成 .ko
+#   把这个目标绑定到 my_module 上
+#   如果加了 ALL，那么会在你执行 make（默认目标）时一并构建
+#
+# 常见用法场景总结：
+# 用法场景                            用法推荐
+# 调用外部构建工具（如内核 make）     add_custom_command() + add_custom_target()
+# 自动生成代码（如 protobuf、thrift） add_custom_command(OUTPUT)
+# 执行打包、拷贝、清理等任务          add_custom_target(COMMAND ...)
+# 构建副产品不参与默认目标            不加 ALL 参数
+#
+# 创建一个自定义目标，该目标依赖于add_custom_command生成的文件
+SET(M_CUSTOM_FILE ${CMAKE_CURRENT_BINARY_DIR}/custom_command.h)
+ADD_CUSTOM_TARGET(generate_file ALL DEPENDS ${M_CUSTOM_FILE})
+# 显式执行：make generate_file
+
 # 使用 ALL 关键字意味着这个自定义目标将作为默认构建目标的一部分被执行
 # 如果只想在显式请求时才运行这个目标，可以省略 ALL
 # 显式执行的方法为：执行cmake之后，显式执行：make my_custom_target
@@ -22,12 +67,17 @@ ADD_CUSTOM_TARGET(my_custom_target ALL
 # 可以添加一个 ALL 依赖。但注意，这通常不是推荐的做法，除非自定义目标是项目构建流程
 # 的核心部分。
 
+
+# ----------------------------------------------------------------------------
+# ADD_CUSTOM_COMMAND
+# ----------------------------------------------------------------------------
+
 # ADD_CUSTOM_COMMAND 在 CMake 中有两种主要用法，其中一种需要 TARGET 参数，而另一种
 # 不需要。
 #
 # --> OUTPUT
 # add_custom_command() 定义一个命令，在满足某些条件时运行，比如：
-#   生成某个输出文件（例如 .ko）
+#   当指定的输出文件，被某个 target 需要时，就会执行命令生成
 #   在依赖文件变更时重新执行
 #
 # 常用语法结构（针对构建文件）：
@@ -60,6 +110,15 @@ ADD_CUSTOM_TARGET(my_custom_target ALL
 #   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 #   COMMENT "Building kernel module"
 # )
+#
+# 当 ${M_CUSTOM_FILE} 被某个 target 需要时，会执行这条命令
+# FILE(WRITE ${M_CUSTOM_FILE} "")
+ADD_CUSTOM_COMMAND(
+    OUTPUT ${M_CUSTOM_FILE}
+    COMMAND ${CMAKE_COMMAND} -E echo "My custom command(OUTPUT) is running!" # > ${M_CUSTOM_FILE}
+    COMMENT "Running a custom command(OUTPUT)"
+    VERBATIM
+)
 #
 # --> TARGET
 # 还有一种 附加命令到已有目标（如 add_executable() 或 add_custom_target() 创建的目标）
@@ -136,63 +195,6 @@ ADD_CUSTOM_COMMAND(
     COMMENT "Running a custom command(TARGET)"
     VERBATIM
 )
-
-SET(M_CUSTOM_FILE ${CMAKE_CURRENT_BINARY_DIR}/custom_command.h)
-# FILE(WRITE ${M_CUSTOM_FILE} "")
-ADD_CUSTOM_COMMAND(
-    OUTPUT ${M_CUSTOM_FILE}
-    COMMAND ${CMAKE_COMMAND} -E echo "My custom command(OUTPUT) is running!" # > ${M_CUSTOM_FILE}
-    COMMENT "Running a custom command(OUTPUT)"
-    VERBATIM
-)
-
-
-# ----------------------------------------------------------------------------
-# ADD_CUSTOM_TARGET
-# ----------------------------------------------------------------------------
-# add_custom_target() 定义一个伪目标（并不会自动生成一个实际文件），通常用于封装
-# 执行 add_custom_command() 定义的命令结果，或者执行一些脚本/命令。
-# 语法结构：
-# add_custom_target(target_name
-#   [ALL]  # 可选：添加到默认构建目标
-#   [COMMAND cmd1 args1...]
-#   [DEPENDS dep1 dep2 ...]
-#   [WORKING_DIRECTORY dir]
-#   [COMMENT "message"]
-# )
-# 或者（常见组合用法）：
-# add_custom_target(my_target ALL
-#   DEPENDS my_module.ko
-# )
-# 这里不写 COMMAND，而是说：这个目标依赖于前面定义的 add_custom_command() 的输出文件。
-#
-# 二者结合使用：典型用法
-# 组合方式如下：
-#   add_custom_command(
-#     OUTPUT ${CMAKE_BINARY_DIR}/my_module.ko
-#     COMMAND make -C /lib/modules/$(uname -r)/build M=${CMAKE_CURRENT_SOURCE_DIR} modules
-#     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/my_module.c
-#     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-#   )
-#   add_custom_target(my_module ALL
-#     DEPENDS ${CMAKE_BINARY_DIR}/my_module.ko
-#   )
-# 当你运行 make 时，CMake 会自动：
-#   检查 .ko 文件是否存在或是否过期
-#   如果需要，就运行 make -C ... 命令来生成 .ko
-#   把这个目标绑定到 my_module 上
-#   如果加了 ALL，那么会在你执行 make（默认目标）时一并构建
-#
-# 常见用法场景总结：
-# 用法场景                            用法推荐
-# 调用外部构建工具（如内核 make）     add_custom_command() + add_custom_target()
-# 自动生成代码（如 protobuf、thrift） add_custom_command(OUTPUT)
-# 执行打包、拷贝、清理等任务          add_custom_target(COMMAND ...)
-# 构建副产品不参与默认目标            不加 ALL 参数
-#
-# 创建一个自定义目标，该目标依赖于add_custom_command生成的文件
-ADD_CUSTOM_TARGET(generate_file ALL DEPENDS ${M_CUSTOM_FILE})
-# 显式执行：make generate_file
 
 
 # ----------------------------------------------------------------------------

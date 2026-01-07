@@ -2,6 +2,35 @@
 # base options
 ###############################################
 
+# CMake 的工作严格分成三段，完整三阶段时间线：
+#   1. configure 阶段   → cmake ..
+#       主要做的事：
+#           解析 CMakeLists.txt
+#           set() / option() / if()
+#           检测编译器
+#           查找库（find_package）
+#           决定 target 结构
+#           这时不会生成 Makefile / build.ninja
+#   2. generate 阶段    → cmake ..（同一次命令里）
+#       主要做的事：
+#           把 configure 阶段得到的 target graph
+#           转换成：
+#               Makefile
+#               build.ninja
+#               VS 工程文件
+#               展开 generator expression（$<...>）
+#           执行：
+#               file(GENERATE)
+#               $<TARGET_OBJECTS:...>
+#               $<CONFIG:Debug>
+#               这是 generator expression 唯一生效的阶段
+#   3. build 阶段       → make / ninja / make -j
+#       主要做的事：
+#           编译 .c → .o
+#           执行 add_custom_command
+#           链接 .o → .a / .so / ELF
+#           这一阶段不会再解析 CMake 逻辑
+
 #指定运行此配置文件所需的 CMake 的最低版本
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5)
 

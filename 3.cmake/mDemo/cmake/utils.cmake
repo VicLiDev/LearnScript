@@ -22,32 +22,52 @@ MESSAGE(STATUS "-------- FILE OPT --------")
 # FILE(<operation> [args...])
 # 常用操作分类如下：
 # 1. 文件内容相关
-#   | 操作名         | 描述                 |
-#   | -------------- | -------------------- |
-#   | `READ`         | 读取文件内容到变量   |
-#   | `WRITE`        | 覆盖写入文件内容     |
-#   | `APPEND`       | 追加内容到文件末尾   |
-#   | `READ_SYMLINK` | 获取符号链接目标路径 |
+#   | 操作名         | 描述                         | 备注                                   |
+#   | -------------- | ---------------------------- | -------------------------------------- |
+#   | `READ`         | 读取文件内容到变量           | `file(READ filename var)`              |
+#   | `WRITE`        | 覆盖写入文件内容             | `file(WRITE filename "content")`       |
+#   | `APPEND`       | 追加内容到文件末尾           | `file(APPEND filename "more content")` |
+#   | `READ_SYMLINK` | 获取符号链接目标路径         | 返回链接指向的实际路径                 |
+#   | `STRINGS`      | 从文件中读取文本行到列表变量 | 可指定正则过滤匹配行                   |
 #
 # 2. 路径 / 文件系统操作
-#   | 操作名           | 描述                                              |
-#   | ---------------- | ------------------------------------------------- |
-#   | `GLOB`           | 匹配当前目录的文件（不递归）                      |
-#   | `GLOB_RECURSE`   | 递归匹配所有子目录文件                            |
-#   | `MAKE_DIRECTORY` | 创建目录                                          |
-#   | `REMOVE`         | 删除文件                                          |
-#   | `REMOVE_RECURSE` | 删除文件或目录（递归）                            |
-#   | `RENAME`         | 重命名或移动文件                                  |
-#   | `COPY`           | 复制文件或目录                                    |
-#   | `INSTALL`        | 安装文件到目标目录（更常用于 `install()` 函数中） |
+#   | 操作名           | 描述                                              | 备注                                            |
+#   | ---------------- | ------------------------------------------------- | ----------------------------------------------- |
+#   | `GLOB`           | 匹配当前目录的文件（不递归）                      | `file(GLOB var "*.c")`                          |
+#   | `GLOB_RECURSE`   | 递归匹配子目录文件                                | `file(GLOB_RECURSE var "*.cpp")`                |
+#   | `MAKE_DIRECTORY` | 创建目录                                          | 可创建多级目录                                  |
+#   | `REMOVE`         | 删除文件                                          | `file(REMOVE file1 file2)`                      |
+#   | `REMOVE_RECURSE` | 删除文件或目录（递归）                            | 注意：危险操作                                  |
+#   | `RENAME`         | 重命名或移动文件                                  | `file(RENAME old new)`                          |
+#   | `COPY`           | 复制文件或目录                                    | 可使用 `DIRECTORY` 或 `FILES` 参数              |
+#   | `INSTALL`        | 安装文件到目标目录（更常用于 `install()` 函数中） | 配合 `DESTINATION` 使用                         |
+#   | `CREATE_LINK`    | 创建符号链接                                      | `file(CREATE_LINK target link_name [SYMBOLIC])` |
+#   | `TOUCH`          | 更新文件的时间戳或创建空文件                      | 类似 Unix `touch`                               |
 #
 # 3. 路径检查和比较
-#   | 操作名           | 描述                       |
-#   | ---------------- | -------------------------- |
-#   | `TO_CMAKE_PATH`  | 转换路径为统一的 `/` 格式  |
-#   | `TO_NATIVE_PATH` | 转换路径为平台本地格式     |
-#   | `RELATIVE_PATH`  | 计算相对路径               |
-
+#   | 操作名           | 描述                    | 备注                                     |
+#   | ---------------- | ----------------------- | ---------------------------------------- |
+#   | `TO_CMAKE_PATH`  | 转换路径为统一 `/` 格式 | 跨平台统一路径分隔符                     |
+#   | `TO_NATIVE_PATH` | 转换路径为平台本地格式  | Windows 用 `\`，Linux/macOS 用 `/`       |
+#   | `RELATIVE_PATH`  | 计算相对路径            | `file(RELATIVE_PATH result base target)` |
+#   | `IS_ABSOLUTE`    | 检查路径是否为绝对路径  | 返回 0/1 或字符串                        |
+#   | `MAKE_DIRECTORY` | 创建目录                | 可递归创建                               |
+#
+# 4. 文件属性 / 信息查询
+#   | 操作名                     | 描述                      | 备注                                  |
+#   | -------------------------- | ------------------------- | ------------------------------------- |
+#   | `WRITE_TIMESTAMP`          | 修改文件的时间戳          | `file(WRITE_TIMESTAMP file)`          |
+#   | `TIMESTAMP`                | 获取文件最后修改时间      | 可输出到变量                          |
+#   | `MD5` / `SHA1`             | 计算文件的 hash 值        | 安全校验或版本控制                    |
+#   | `IS_DIRECTORY`             | 检查路径是否为目录        | 返回布尔                              |
+#   | `IS_SYMLINK`               | 检查路径是否是符号链接    | 返回布尔                              |
+#   | `GET_RUNTIME_DEPENDENCIES` | 获取可执行文件 / 库的依赖 | 主要在高级 CMake / packaging 场景使用 |
+#
+# 5. 高级 / generate 阶段相关
+#   | 操作名              | 描述                                             | 备注                        |
+#   | ------------------- | ------------------------------------------------ | --------------------------- |
+#   | `GENERATE`          | 生成文件，可以使用 generator expression `$<...>` | `file(GENERATE OUTPUT ...)` |
+#   | `COPY_IF_DIFFERENT` | 只有当源文件与目标不同才复制                     | 减少无谓重新构建            |
 
 cmake_minimum_required(VERSION 3.15)
 project(Demo_Get_File)

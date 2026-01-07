@@ -174,9 +174,130 @@ endif()
 # - `CMAKE_BUILD_TYPE`: 构建类型(Debug/Release等)
 
 # 2. 生成器表达式
-# $<CONFIG:Debug>  # 当前配置是否为Debug
-# $<TARGET_FILE:tgt>  # 目标文件路径
-# $<BOOL:expr>     # 转换为布尔值
+# 生成器表达式是：在 generate 阶段 才求值的“条件表达式”，
+# 用来根据配置 / target / 属性，动态生成构建规则。
+# 语法特征：$<...>
+# 核心要点：
+#   不在 cmake ..（configure）阶段求值，在 生成构建系统（Makefile / Ninja）时才展开
+#   最终求到的值都是文本，或者说是字符串
+#   主要用于：
+#       条件源文件
+#       条件编译选项
+#       条件链接
+#       条件路径
+# 表达式内部的两种基本形态
+#   操作符表达式（Operator form）
+#       $<OPERATOR:ARG1,ARG2,...>
+#       其中：
+#       OPERATOR：内建操作符（固定集合）
+#       :：操作符与参数的分隔符
+#       ,：参数分隔符
+#       示例
+#       $<CONFIG>
+#       $<CONFIG:Debug>
+#       $<BOOL:${ENABLE_LOG}>
+#       $<TARGET_FILE:mylib>
+#       $<TARGET_OBJECTS:objlib>
+#   条件表达式（Conditional form）
+#       $<CONDITION:RESULT>
+#       注意：
+#       这里的 CONDITION 本身仍然是一个生成器表达式
+#       示例
+#       $<$<CONFIG:Debug>:foo>
+#       拆解：
+#       $<
+#         CONDITION : RESULT
+#       >
+#       所以：
+#       CONDITION → "1" / "0"
+#       CONDITION 为真 → 输出 RESULT
+#       CONDITION 为假 → 输出空字符串 ""
+# 冒号 : 的语法规则
+#   规则1: 冒号永远分隔“左语义”和“右结果” (左边  :  右边)
+#   规则2: 冒号的含义取决于上下文，但语法角色始终一样：分隔
+#       上下文 $<OP:ARG>      含义 OP 的参数
+#       上下文 $<COND:RESULT> 含义 条件 → 结果
+#   规则3: 最外层只允许一个冒号
+#       错误：$<A:B:C>
+#       正确（嵌套）： $<A:$<B:C>>
+# 因为在 generate 阶段展开，所以
+#   if($<CONFIG:Debug>)                                                   # 错
+#   target_compile_definitions(tgt PRIVATE $<$<CONFIG:Debug>:DEBUG_MODE>) # 正确
+#
+#
+# 常用生成器表达式分类
+#
+# 配置相关（单 / 多配置）
+#   $<CONFIG:Debug>           # 当前配置是否为 Debug，为Debug得到1，否则为0
+#   $<CONFIG:Release>
+#   $<CONFIG:RelWithDebInfo>
+#   $<CONFIG>                 # 当前配置名（字符串）
+#   用法示例：
+#   target_compile_options(app PRIVATE
+#       $<$<CONFIG:Debug>:-O0 -g>
+#       $<$<CONFIG:Release>:-O3>
+#   )
+#
+# 布尔 / 逻辑表达式
+#   布尔转换(转换为bool值)
+#   $<BOOL:expr>        # 非空 / 非 0 → 1，否则 0
+#   $<NOT:expr>
+#   逻辑运算
+#   $<AND:expr1,expr2>
+#   $<OR:expr1,expr2>
+#   示例：
+#   $<$<AND:$<CONFIG:Debug>,$<BOOL:${ENABLE_LOG}>>:ENABLE_LOG>
+#
+# 条件选择（最常用）
+#   语法
+#   $<$<condition>:value>
+#   condition 为真 → 展开 value
+#   否则 → 空
+#   示例（条件源文件）：
+#   target_sources(lib PRIVATE
+#       $<$<BOOL:${HAVE_VDPU341}>:hal_h265d_rkv.c>
+#   )
+#   这是 HAL 场景最推荐的用法
+#
+# target / 文件路径相关（非常重要）
+#   $<TARGET_FILE:tgt>        # 目标文件路径（.a / .so / exe）
+#   $<TARGET_FILE_DIR:tgt>
+#   $<TARGET_FILE_NAME:tgt>
+#   $<TARGET_OBJECTS:tgt>     # OBJECT library 的 .o 列表
+#   示例：
+#   add_custom_command(
+#       COMMAND cp $<TARGET_FILE:mylib> /tmp
+#   )
+#
+# target 属性查询
+#   $<TARGET_PROPERTY:tgt,PROPERTY>
+#   $<TARGET_PROPERTY:PROPERTY>   # 当前 target
+#   示例：
+#   $<TARGET_PROPERTY:INTERFACE_INCLUDE_DIRECTORIES>
+#
+# 平台 / 编译器相关
+#   $<PLATFORM_ID:Linux>
+#   $<C_COMPILER_ID:GNU>
+#   $<CXX_COMPILER_ID:Clang>
+#   示例：
+#   target_compile_options(app PRIVATE
+#       $<$<C_COMPILER_ID:GNU>:-Wall>
+#   )
+#
+# 语言相关
+#   $<COMPILE_LANGUAGE:C>
+#   $<COMPILE_LANGUAGE:CXX>
+#   示例：
+#   target_compile_definitions(lib PRIVATE
+#       $<$<COMPILE_LANGUAGE:CXX>:USE_CPP>
+#   )
+#
+# 字符串 / list 操作（高级）
+#   $<JOIN:list,delimiter>
+#   $<LOWER_CASE:expr>
+#   $<UPPER_CASE:expr>
+#   示例：
+#   $<JOIN:$<TARGET_OBJECTS:objlib>,\n>
 
 # ----------------------------------------------------------------------------
 # 六、最佳实践
