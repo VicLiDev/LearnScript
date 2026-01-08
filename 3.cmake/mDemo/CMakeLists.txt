@@ -11,6 +11,7 @@
 #           查找库（find_package）
 #           决定 target 结构
 #           这时不会生成 Makefile / build.ninja
+#           打印信息
 #   2. generate 阶段    → cmake ..（同一次命令里）
 #       主要做的事：
 #           把 configure 阶段得到的 target graph
