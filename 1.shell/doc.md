@@ -1792,6 +1792,21 @@ do
 done
 ```
 
+另一种for循环的方法：
+seq 是 Linux / Unix 下一个专门用来生成数字序列的小工具
+```
+for i in $(seq 0 3); do
+  printf "%s" "$i"
+done
+```
+
+对于bash可以写成：
+```
+for i in {0..3}; do
+  echo "$i"
+done
+```
+
 
 ## while 语句
 
