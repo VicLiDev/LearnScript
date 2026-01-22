@@ -73,6 +73,52 @@ MESSAGE(STATUS "-------- WORK FLOW CTRL --------")
 #   于是就形成了“它好像也能用”的错觉
 #   但这只是偶然安全
 
+# MATCHES
+# 判断一个字符串是否匹配某个正则表达式，
+# cmake 使用的正则表达式是：POSIX Extended Regular Expression（ERE）
+# 不是 PCRE（不是 Python / C++ std::regex 那套）
+#
+# if(<string> MATCHES <regex>)
+# 只要 <string> 的任意子串能匹配 <regex>，MATCHES 就为 TRUE。
+# 白话的讲：只要 <string> 的任意子串能匹配 <regex>，MATCHES 就为 TRUE。
+# 匹配成功 → 条件为 TRUE
+# 匹配失败 → 条件为 FALSE
+#
+# 最基本用法
+#   set(VAR "hello123")
+#
+#   if(VAR MATCHES "[0-9]+")
+#       message("VAR 包含数字")
+#   endif()
+# VAR 在 if() 中会被自动解引用，等价于 "${VAR}" MATCHES "regex"
+
+set(MATCH_TEST "abc123")
+
+if(MATCH_TEST MATCHES "abc.*")
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc.*): TRUE")
+else()
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc.*): FALSE")
+endif()
+
+if(MATCH_TEST MATCHES "abc123")
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc123): TRUE")
+else()
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc123): FALSE")
+endif()
+
+if(MATCH_TEST MATCHES "abc12")
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc12): TRUE")
+else()
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc12): FALSE")
+endif()
+
+if(MATCH_TEST MATCHES "abc1234")
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc1234): TRUE")
+else()
+    message(STATUS "MATCH_TEST(${MATCH_TEST}|abc1234): FALSE")
+endif()
+
+
 # ----------------------------------------------------------------------------
 # `foreach` 循环
 # ----------------------------------------------------------------------------
