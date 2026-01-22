@@ -42,6 +42,40 @@ print_all_args("arg1" "arg2" "arg3")
 #   函数有自己的作用域，修改变量不会影响外部作用域
 #   宏直接展开到调用处，修改变量会影响外部
 
+# function 传递 result 的标准方式：PARENT_SCOPE
+# 基本写法
+function(calc_sum a b result)
+    math(EXPR tmp "${a} + ${b}")
+    set(${result} ${tmp} PARENT_SCOPE)
+endfunction()
+
+calc_sum(3 5 SUM)
+message(STATUS "SUM = ${SUM}")  # 输出 8
+# result 是变量名
+# set(${result} value PARENT_SCOPE)  把值写回 调用该 function 的作用域
+
+# 多个 result 的传递方式
+function(get_info out_a out_b)
+    set(${out_a} "hello" PARENT_SCOPE)
+    set(${out_b} "world" PARENT_SCOPE)
+endfunction()
+
+get_info(A B)
+message(STATUS "${A} ${B}")  # hello world
+
+# 传递 list / 复杂数据
+function(make_list out)
+    set(tmp a b c)
+    set(${out} "${tmp}" PARENT_SCOPE)
+endfunction()
+
+make_list(MY_LIST)
+list(LENGTH MY_LIST len)
+message(STATUS "list: ${MY_LIST} len:${len}")        # a;b;c
+# 注意：
+#   CMake list 本质是 ; 分隔字符串
+#   传递时一定要加引号 "${tmp}"
+
 
 # ----------------------------------------------------------------------------
 # MACRO
