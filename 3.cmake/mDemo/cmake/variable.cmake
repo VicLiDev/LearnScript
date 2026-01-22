@@ -3,6 +3,10 @@ MESSAGE(STATUS "-------- VARIABLE --------")
 # 一、变量类型
 # ----------------------------------------------------------------------------
 
+# CMake 里的 变量只有字符串一种类型
+# 不区分 int / string / bool
+# 一切都是 文本
+
 # 1. 普通变量
 # 最基本的变量类型，使用 `set()` 命令定义：
 set(MY_VARIABLE "Hello World")
@@ -54,10 +58,27 @@ unset(VAR_NAME CACHE)  # 取消缓存变量
 # $CACHE{VAR_NAME}  # 显式引用缓存变量(CMake 3.21+)
 
 # 4. 列表操作
-list(APPEND MY_LIST "new_item")  # 追加
-list(REMOVE_ITEM MY_LIST "item") # 删除
-list(LENGTH MY_LIST len)         # 长度
-list(GET MY_LIST 0 first)        # 获取元素
+# CMake 里没有真正独立的“列表类型”，列表本质上就是“用分号 ; 分隔的字符串变量”。
+set(MY_LIST l_a l_b l_c)
+# 等价于
+# set(MY_LIST "l_a;l_b;l_c")
+message(STATUS "MY_LIST org list: ${MY_LIST}")
+
+# 追加
+list(APPEND MY_LIST "new_item")
+message(STATUS "MY_LIST append: ${MY_LIST}")
+
+# 删除
+list(REMOVE_ITEM MY_LIST "new_item")
+message(STATUS "MY_LIST delte: ${MY_LIST}")
+
+# 长度
+list(LENGTH MY_LIST len)
+message(STATUS "MY_LIST len: ${len}")
+
+# 获取元素，从列表变量 MY_LIST 中取出第 0 个元素，并保存到变量 first 里。
+list(GET MY_LIST 1 first)
+message(STATUS "MY_LIST len: ${first}")
 
 # 5. 字符串操作
 # `string` 命令的基本格式是：
