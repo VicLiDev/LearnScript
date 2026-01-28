@@ -4,13 +4,12 @@ reference: https://www.runoob.com/linux/linux-shell.html
 # Shell 环境
 
 Shell 编程跟 JavaScript、php 编程一样，只要有一个能编写代码的文本编辑器和一个能
-解释执行的脚本解释器就可以了。
-* Linux 的 Shell 种类众多，常见的有：
-* Bourne Shell（/usr/bin/sh或/bin/sh）
-* Bourne Again Shell（/bin/bash）
-* C Shell（/usr/bin/csh）
-* K Shell（/usr/bin/ksh）
-* Shell for Root（/sbin/sh）
+解释执行的脚本解释器就可以了。Linux 的 Shell 种类众多，常见的有：
+* Bourne Shell（/usr/bin/sh或/bin/sh），最初的 Unix Shell
+* Bourne Again Shell（/bin/bash），最常用的 Shell，本教程主要讲解
+* C Shell（/usr/bin/csh），语法类似 C 语言
+* K Shell（/usr/bin/ksh），KornShell
+* Shell for Root（/sbin/sh），给 root 使用的 Shell
 * ……
 
 本教程关注的是 Bash，也就是 Bourne Again Shell，由于易用和免费，Bash 在日常工作中
@@ -20,10 +19,21 @@ Shell 编程跟 JavaScript、php 编程一样，只要有一个能编写代码�
 它同样也可以改为 #!/bin/bash。
 
 `#!` 告诉系统其后路径所指定的程序即是解释此脚本文件的 Shell 程序。
+* `#!bash` 当脚本被执行时，系统会尝试在固定的几个路径（通常是 /bin、/usr/bin、
+  /usr/local/bin 等）中查找名为 bash 的可执行文件，如果 bash 可执行文件不在上述
+  路径之一，或者它的位置因系统不同而有所变化，那么脚本可能无法在所有系统上正常执行。
+* `#!env bash` 使用了 env 程序来查找 bash 解释器。env 程序会在环境变量 PATH 中
+  列出的所有路径中搜索名为 bash 的可执行文件。这种方式的优势在于提高了脚本的便携性，
+  因为它不依赖于 bash 解释器的固定位置。无论bash 安装在哪里，只要它在 PATH 环境
+  变量中，env 就能找到它，这使得脚本更有可能在不同的系统和环境中成功执行。
+* 在现代的 Unix-like 系统中，推荐使用 #!/usr/bin/env bash，因为它更加灵活可靠。
+  然而，对于一些老的系统，可能需要使用 #!/bin/bash，因为它们可能不支持 env 的
+  shebang 行用法。
+
 
 运行shell的三种方法：
-1. 直接执行，例如：./test.sh。这需要文件具有可执行属性。
-2. 使用脚本解释器解释执行，例如：sh ./test.sh。
+1. 直接执行，例如：`./test.sh`。这需要文件具有可执行属性。
+2. 使用脚本解释器解释执行，例如：`sh ./test.sh`。
 3. 使用source执行，例如：source ./test.sh。这种方法不开新的shell子进程，也就是在
    当前的shell线程中执行，其他两种方法是要开子线程的。子进程仅会继承父进程的环境
    变量，子进程不会继承父进程的自定义变量。
@@ -33,9 +43,9 @@ Shell 编程跟 JavaScript、php 编程一样，只要有一个能编写代码�
 ## 作用域
 
 Shell 变量的作用域可以分为三种：
-* 有的变量只能在函数内部使用，这叫做局部变量（local variable）
-* 有的变量可以在当前 Shell 进程中使用，这叫做全局变量（global variable）
-* 而有的变量还可以在子进程中使用，这叫做环境变量（environment variable）
+* 局部变量（local variable）：只能在函数内部使用，使用`local`声明
+* 全局变量（global variable）：可以在当前 Shell 进程中使用，默认定义的变量
+* 环境变量（environment variable）：可以在子进程中使用，使用`export`导出
 
 ### 局部变量
 
@@ -44,6 +54,19 @@ Shell 也支持自定义函数，但是 Shell 函数和 C++、Java、C# 等其�
 一样的效果。
 
 要想变量的作用域仅限于函数内部，可以在定义时加上local命令，此时该变量就成了局部变量。
+```shell
+#!/bin/bash
+
+my_func() {
+    local local_var="I am local"
+    global_var="I am global"
+}
+
+my_func
+
+echo $local_var    # 输出为空
+echo $global_var   # 输出: I am global
+```
 
 Shell 变量的这个特性和 JavaScript 中的变量是类似的。在 JavaScript 函数内部定义的
 变量，默认也是全局变量，只有加上var关键字，它才会变成局部变量。
@@ -78,11 +101,11 @@ export命令将全局变量导出，那么它就在所有的子进程中也有�
 定义变量时，变量名不加美元符号（$，PHP语言中变量需要），如：
 your_name="runoob.com"
 注意，变量名和等号之间不能有空格，这可能和你熟悉的所有编程语言都不一样。同时，
-变量名的命名须遵循如下规则： 
-* 命名只能使用英文字母，数字和下划线，首个字符不能以数字开头。 
-* 中间不能有空格，可以使用下划线（_）。 
-* 不能使用标点符号。 
-* 不能使用bash里的关键字（可用help命令查看保留关键字）。 
+变量名的命名须遵循如下规则：
+* 命名只能使用英文字母，数字和下划线，首个字符不能以数字开头。
+* 中间不能有空格，可以使用下划线（_）。
+* 不能使用标点符号。
+* 不能使用bash里的关键字（可用help命令查看保留关键字）。
 
 有效的 Shell 变量名示例如下：
 ```
@@ -132,7 +155,6 @@ declare [-aAfFgiIlnrtux] [-p] [name[=value] …]
 -x  标记每个名称以通过环境导出到后续命令。
 ```
 
-
 ## 使用变量
 
 使用一个定义过的变量，只要在变量名前面加美元符号即可，如：
@@ -142,7 +164,7 @@ echo $your_name
 echo ${your_name}
 ```
 变量名外面的花括号是可选的，加不加都行，加花括号是为了帮助解释器识别变量的边界，
-比如下面这种情况： 
+比如下面这种情况：
 ```
 for skill in Ada Coffe Action Java; do
     echo "I am good at ${skill}Script"
@@ -163,6 +185,7 @@ echo $your_name
 
 
 ## 只读变量
+
 使用 readonly 命令可以将变量定义为只读变量，只读变量的值不能被改变。下面的例子
 尝试更改只读变量，结果报错：
 ```
@@ -205,19 +228,21 @@ echo $myUrl
 
 
 ## Shell 字符串
+
 字符串是shell编程中最常用最有用的数据类型（除了数字和字符串，也没啥其它类型好用了），
 字符串可以用单引号，也可以用双引号，也可以不用引号。
 
-### 单引号 
+### 单引号
+
 ```
 str='this is a string'
 ```
-单引号字符串的限制： 
-* 单引号里的任何字符都会原样输出，单引号字符串中的变量是无效的； 
+单引号字符串的限制：
+* 单引号里的任何字符都会原样输出，单引号字符串中的变量是无效的；
 * 单引号字串中不能出现单独一个的单引号（对单引号使用转义符后也不行），但可成对出现，
-  作为字符串拼接使用。 
+  作为字符串拼接使用。
 
-### 双引号 
+### 双引号
 ```
 your_name='runoob'
 str="Hello, I know you are \"$your_name\"! \n"
@@ -225,13 +250,14 @@ echo -e $str
 ```
 输出结果为：
 ```
-Hello, I know you are "runoob"! 
+Hello, I know you are "runoob"!
 ```
 双引号的优点：
-* 双引号里可以有变量 
-* 双引号里可以出现转义字符 
+* 双引号里可以有变量
+* 双引号里可以出现转义字符
 
-### 拼接字符串 
+### 拼接字符串
+
 ```
 your_name="runoob"
 # 使用双引号拼接
@@ -249,7 +275,7 @@ hello, runoob ! hello, runoob !
 hello, runoob ! hello, ${your_name} !
 ```
 
-### 查找子字符串 
+### 查找子字符串
 
 查找字符 i 或 o 的位置(哪个字母先出现就计算哪个)：
 ```
@@ -261,26 +287,34 @@ echo `expr index "$string" io`  # 输出 4
 ### 其它常用操作
 
 ```
-${#string}  $string的长度
+# 获取长度
+${#string}
 
-${string:position}  在$string中, 从位置$position开始提取子串
-${string:position:length}  在$string中, 从位置$position开始提取长度为$length的子串
+# 提取子串
+${string:position}              # 从 position 开始提取到结尾
+${string:position:length}       # 从 position 开始提取 length 个字符
 
-${string#substring}  从变量$string的开头, 删除最短匹配$substring的子串
-${string##substring}  从变量$string的开头, 删除最长匹配$substring的子串
-${string%substring}  从变量$string的结尾, 删除最短匹配$substring的子串
-${string%%substring}  从变量$string的结尾, 删除最长匹配$substring的子串
+# 从开头删除
+${string#pattern}               # 删除最短匹配的 prefix
+${string##pattern}              # 删除最长匹配的 prefix
 
-${string/substring/replacement}  使用$replacement, 来代替第一个匹配的$substring
-${string//substring/replacement}  使用$replacement, 代替所有匹配的$substring
-${string/#substring/replacement}  如果$string的前缀匹配$substring, 那么就用$replacement来代替匹配到的$substring
-${string/%substring/replacement}  如果$string的后缀匹配$substring, 那么就用$replacement来代替匹配到的$substring
+# 从结尾删除
+${string%pattern}               # 删除最短匹配的 suffix
+${string%%pattern}              # 删除最长匹配的 suffix
 
-${string^}  把变量中的第一个字符换成大写
-${string^^} 把变量中的所有小写字母，全部替换为大写
-${string,}  把变量中的第一个字符换成小写
-${string,,}  把变量中的所有大写字母，全部替换为小写
+# 替换
+${string/pattern/replacement}   # 替换第一个匹配
+${string//pattern/replacement}  # 替换所有匹配
+${string/#pattern/replacement}  # 替换开头匹配
+${string/%pattern/replacement}  # 替换结尾匹配
+
+# 大小写转换
+${string^}      # 首字符大写
+${string^^}     # 全部转大写
+${string,}      # 首字符小写
+${string,,}     # 全部转小写
 ```
+
 ## 内置集合 `set`
 
 [bash 在线手册](https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin)
