@@ -3140,30 +3140,83 @@ echo "$script_dir"
 
 # 重要指令
 
-## `dirname`
+## 路径处理
 
-打印文件或目录所在路径。如：
+### dirname / basename / readlink
+
+| 操作       | 命令              | `/a/b/c.txt` 结果 | 说明                           |
+| ---------- | ----------------- | ----------------- | ------------------------------ |
+| 取目录     | `dirname`         | `/a/b`            | 去掉最后一级                   |
+| 取文件名   | `basename`        | `c.txt`           | 只保留最后一级                 |
+| 取绝对路径 | `readlink -f`     | `/a/b/c.txt`      | 解析链接，返回完整绝对路径     |
+
+**示例：**
 ```shell
-$dirname /ete/samba/
-$/etc
-$dirname /tec/samba/smb.config
-$/etc/samba
+$ dirname /etc/samba/
+/etc
+$ dirname /etc/samba/smb.conf
+/etc/samba
+$ basename /etc/samba/smb.conf
+smb.conf
+$ readlink -f /etc/samba
+/etc/samba
+# 对于软链接 lt -> /etc/samba
+$ readlink -f lt
+/etc/samba
 ```
-获取当前脚本的相对路径（相对路径由当前路径指向脚本路径）：`$(dirname $0)`
-获取当前脚本的绝对路径：$(cd \`dirname $0\` && pwd)
 
-## `readlink -f $path`
+**获取脚本所在目录：**
+```bash
+# 获取脚本的相对路径
+$(dirname $0)
 
-获取path所指链接或文件或目录的绝对路径，如果path没有链接，就显示文件或目录本身的
-绝对路径，若有则显示相对路径。与dirname不同的是会保留最后的节点。如：
-```shell
-$readlink -f /etc/samba
-$/etc/samba
-$readlink -f /etc/samba/smb.conf
-$/etc/samba/smb.conf
-对于 lt—>/etc/samba
-$readlink -f lt
-$/etc/samba
+# 获取脚本的绝对路径
+$(cd "$(dirname "$0")" && pwd)
+
+# 推荐方式（支持 source 调用）
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+```
+
+### 参数扩展处理文件名
+
+使用参数扩展可以更灵活地处理路径的各个部分：
+
+```bash
+file="/path/to/file.tar.gz"
+
+# 取目录（同 dirname）
+dir="${file%/*}"              # /path/to
+
+# 取文件名（同 basename）
+name="${file##*/}"            # file.tar.gz
+
+# 取无后缀文件名
+base="${name%.*}"             # file.tar  (只删最后一个后缀)
+base="${name%%.*}"            # file      (删所有后缀)
+
+# 取后缀
+ext="${file##*.}"             # gz         (最后一个后缀)
+ext="${name#*.}"              # tar.gz     (第一个后缀之后的所有)
+
+# 取路径的父目录
+parent="${dir%/*}"            # /path
+```
+
+**参数扩展速查：**
+| 模式       | 含义                   | 示例（file="/a/b/c.txt"） |
+| ---------- | ---------------------- | ------------------------- |
+| `${var#*}` | 删除最短匹配的前缀     | `${file##*/}` → `c.txt`   |
+| `${var##*}`| 删除最长匹配的前缀     | `${file#*/}` → `a/b/c.txt`|
+| `${var%*}` | 删除最短匹配的后缀     | `${file%/*}` → `/a/b`     |
+| `${var%%*}`| 删除最长匹配的后缀     | `${file%%/*}` → (空)      |
+
+**常见场景：**
+```bash
+# 批量处理文件时只获取文件名
+for f in /path/to/*.txt; do
+    filename=$(basename "$f")      # a.txt
+    name_without_ext="${filename%.*}"  # a
+done
 ```
 
 ## 获取CPU核心数
