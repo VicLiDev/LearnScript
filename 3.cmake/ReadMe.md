@@ -9,7 +9,8 @@ https://www.bookstack.cn/read/CMake-Cookbook/README.md
 https://github.com/dev-cafe/cmake-cookbook
 https://github.com/PacktPublishing/CMake-Cookbook
 
-mDemo  一个相对完整的cmake文件
+02.mDemo         一个相对完整的cmake文件
+03.mDemo_object  一个针对 object 处理的 demo
 
 ## 交叉编译工具链安装
 
