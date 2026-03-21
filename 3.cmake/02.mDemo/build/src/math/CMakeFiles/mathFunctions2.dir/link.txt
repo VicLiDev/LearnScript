@@ -1,0 +1,1 @@
+/usr/bin/arm-linux-gnueabihf-gcc -fPIC  -Wall -Wextra  -O0 -g -ggdb -shared -Wl,-soname,libmathFunctions2.so -o ../../lib/libmathFunctions2.so CMakeFiles/mathFunctions2.dir/mathFunctions.c.o 

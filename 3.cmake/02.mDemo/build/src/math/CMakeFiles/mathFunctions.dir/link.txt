@@ -1,0 +1,2 @@
+/usr/bin/arm-linux-gnueabihf-ar qc ../../lib/libmathFunctions.a CMakeFiles/mathFunctions.dir/mathFunctions.c.o
+/usr/bin/arm-linux-gnueabihf-ranlib ../../lib/libmathFunctions.a
