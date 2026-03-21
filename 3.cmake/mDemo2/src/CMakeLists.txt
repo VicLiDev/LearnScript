@@ -1,8 +1,0 @@
-# 查找当前目录下的所有源文件
-# 并将名称保存到 DIR_SRCS 变量
-AUX_SOURCE_DIRECTORY(. DIR_SRCS)
-
-# 指定生成目标
-ADD_EXECUTABLE(demo ${DIR_SRCS})
-TARGET_LINK_LIBRARIES (demo  ${EXTRA_LIBS})
-
