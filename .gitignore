@@ -1,3 +1,4 @@
 *build
 3.cmake/02.mDemo/build/
 3.cmake/03.mDemo_object/build
+*.omc
