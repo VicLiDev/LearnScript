@@ -21,15 +21,22 @@
 # 8        隐藏              36       青色        46         青色
 #
 # 更多命令可参考： https://en.wikipedia.org/wiki/ANSI_escape_code
+#
+# ESC字符的三种写法：\033（八进制）、\e（简写）、\x1b（十六进制）
+# 它们都表示ASCII 27（ESC），效果完全一样，区别仅在于兼容性：
+#   \033  echo -e 和 printf 都支持，兼容性最好
+#   \e    echo -e 支持，printf 不支持（会原样输出\e），写法最简洁
+#   \x1b  echo -e 和 printf 都支持
+# 建议：printf 用 \033 或 \x1b，echo -e 三种都行，\e 最简洁
 
 echo "==> echo"
-echo -e "\033[0m\033[1;31m hello world \033[0m"
-echo -e "\033[0m\033[1;32m hello world \033[0m"
-echo -e "\033[0m\033[1;33m hello world \033[0m"
-echo -e "\033[0m\033[1;34m hello world \033[0m"
-echo -e "\033[0m\033[1;35m hello world \033[0m"
-echo -e "\033[0m\033[1;36m hello world \033[0m"
-echo -e "\033[0m\033[1;37m hello world \033[0m"
+echo -e "\e[0m\e[1;31m hello world \e[0m"
+echo -e "\e[0m\e[1;32m hello world \e[0m"
+echo -e "\e[0m\e[1;33m hello world \e[0m"
+echo -e "\e[0m\e[1;34m hello world \e[0m"
+echo -e "\e[0m\e[1;35m hello world \e[0m"
+echo -e "\e[0m\e[1;36m hello world \e[0m"
+echo -e "\e[0m\e[1;37m hello world \e[0m"
 
 
 printf "\n==> printf\n"
