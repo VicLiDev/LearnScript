@@ -694,9 +694,9 @@ IF(EXISTS "${PROJECT_SOURCE_DIR}/../../.git")
     FIND_PACKAGE(Git)
     IF(GIT_FOUND)
         # get current version info
-        SET(GIT_LOG_FORMAT "%h author: %<|(30)%an %cd %s")
+        SET(GIT_LOG_FORMAT "author: %an <%ae> | %cd | %h | %s")
 
-        EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --oneline --date=short --pretty=format:${GIT_LOG_FORMAT}
+        EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --oneline "--date=format:%Y-%m-%d %H:%M:%S" --pretty=format:${GIT_LOG_FORMAT}
             WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
             OUTPUT_VARIABLE EXEC_OUT
             ERROR_VARIABLE EXEC_ERROR
@@ -717,13 +717,13 @@ IF(EXISTS "${PROJECT_SOURCE_DIR}/../../.git")
             MESSAGE(STATUS "${EXEC_ERROR}")
         ENDIF(NOT EXEC_RET)
 
-        SET(GIT_LOG_FORMAT "%h author: %<|(30)%an %cd %s %d")
+        SET(GIT_LOG_FORMAT "author: %an <%ae> | %cd | %h | %s")
 
         # get history version information
         # setup logs
         MESSAGE(STATUS "git version history:")
         FOREACH(CNT RANGE ${VERSION_MAX_CNT})
-            EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log HEAD~${CNT} -1 --oneline --date=short --pretty=format:${GIT_LOG_FORMAT}
+            EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log HEAD~${CNT} -1 --oneline "--date=format:%Y-%m-%d %H:%M:%S" --pretty=format:${GIT_LOG_FORMAT}
                 WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
                 OUTPUT_VARIABLE EXEC_OUT
                 ERROR_VARIABLE EXEC_ERROR
