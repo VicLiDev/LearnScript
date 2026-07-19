@@ -35,8 +35,8 @@ int main(int argc, char* argv[])
     double base;
     int exponent;
 
-    printf("git version method 1\n");
-    printf("version: %s\n", GIT_VERSION);
+    printf("git version method 1 (from git_version.h)\n");
+    printf("version: %s\n", GIT_VER);
     printf("author:  %s\n", GIT_AUTHOR);
     printf("date:    %s\n", GIT_DATE);
     printf("hash:    %s\n", GIT_HASH);
