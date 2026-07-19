@@ -605,11 +605,16 @@ endif (USE_MYMATH)
 # )
 
 #-- ver 1 直接由CMake写文件
-# 先给字段设默认值，git 不可用时也能生成可用的头文件
-SET(GIT_REPO_VERSION "unknown")
-SET(GIT_REPO_AUTHOR  "unknown")
-SET(GIT_REPO_DATE    "unknown")
-SET(GIT_REPO_HASH    "unknown")
+# 先给所有字段设默认值，git 不可用时也能生成可用的头文件
+SET(GIT_REPO_VERSION    "unknown")
+SET(GIT_REPO_AUTHOR     "unknown")
+SET(GIT_REPO_DATE       "unknown")
+SET(GIT_REPO_HASH       "unknown")
+SET(GIT_REPO_BRANCH     "unknown")
+SET(GIT_REPO_COMMIT_CNT 0)
+SET(GIT_REPO_TIME_ISO   "unknown")
+SET(GIT_DIRTY           0)
+SET(GIT_REPO_REMOTE     "unknown")
 
 # 必须先确认找到 git 再使用 GIT_EXECUTABLE，否则命令会失败
 FIND_PACKAGE(Git)
@@ -619,12 +624,22 @@ MESSAGE(STATUS "    GIT_FOUND          = [${GIT_FOUND}]")
 MESSAGE(STATUS "    GIT_EXECUTABLE     = [${GIT_EXECUTABLE}]")
 MESSAGE(STATUS "    GIT_VERSION_STRING = [${GIT_VERSION_STRING}]")
 IF(GIT_FOUND)
-    # 生成版本描述字符串类似 TAG-X-gHASH
+    # 生成版本描述字符串类似 TAG-X-gHASH (带 --dirty 标记)
     EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} describe --abbrev=6 --dirty --always --tags
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE  GIT_REPO_VERSION
+        RESULT_VARIABLE  GIT_RET
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    IF(NOT GIT_RET)
+        # describe 输出含 "-dirty" 即代表工作区有未提交改动
+        IF(GIT_REPO_VERSION MATCHES "-dirty")
+            SET(GIT_DIRTY 1)
+        ENDIF()
+    ELSE()
+        SET(GIT_REPO_VERSION "unknown")
+    ENDIF()
+
     # 获取最新提交作者
     EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%an
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -637,17 +652,75 @@ IF(GIT_FOUND)
         OUTPUT_VARIABLE  GIT_REPO_DATE
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    # 获取最新 commit Hash
+    # 获取最新 commit 完整 Hash
     EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%H
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE  GIT_REPO_HASH
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
+    # 获取当前分支名
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_BRANCH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取提交总数，可用作单调递增的构建号
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} rev-list --count HEAD
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_COMMIT_CNT
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取 ISO8601 提交时间(带时区)，比纯日期更精确
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%cI
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_TIME_ISO
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取远端仓库地址
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} config --get remote.origin.url
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_REMOTE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    MESSAGE(STATUS "git version: ${GIT_REPO_VERSION} @ ${GIT_REPO_BRANCH} (${GIT_REPO_COMMIT_CNT} commits)")
 ENDIF()
 
-# 写入头文件宏定义的版本字符串，日期和 Hash
+# 构建环境信息(与 git 版本互补：谁/在哪/什么时候/用什么编的)
+SITE_NAME(BUILD_HOST)
+SET(BUILD_USER "$ENV{USER}")
+STRING(TIMESTAMP BUILD_TIME "%Y-%m-%d %H:%M:%S" UTC)
+SET(BUILD_OS "${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_VERSION}")
+SET(BUILD_COMPILER "${CMAKE_C_COMPILER_ID}-${CMAKE_C_COMPILER_VERSION}")
+IF(NOT CMAKE_BUILD_TYPE)
+    SET(BUILD_TYPE "None")
+ELSE()
+    SET(BUILD_TYPE "${CMAKE_BUILD_TYPE}")
+ENDIF()
+
+# 写入头文件宏定义：git 版本信息 + 构建环境信息(加 include guard)
 FILE(WRITE ${PROJECT_BINARY_DIR}/git_version.h
-    "#define GIT_VER \"${GIT_REPO_VERSION}\"\n#define GIT_AUTHOR \"${GIT_REPO_AUTHOR}\"\n#define GIT_DATE \"${GIT_REPO_DATE}\"\n#define GIT_HASH \"${GIT_REPO_HASH}\"\n"
+"#ifndef __GIT_VERSION_H__\n"
+"#define __GIT_VERSION_H__\n"
+"\n"
+"#define GIT_VER        \"${GIT_REPO_VERSION}\"\n"
+"#define GIT_AUTHOR     \"${GIT_REPO_AUTHOR}\"\n"
+"#define GIT_DATE       \"${GIT_REPO_DATE}\"\n"
+"#define GIT_HASH       \"${GIT_REPO_HASH}\"\n"
+"#define GIT_BRANCH     \"${GIT_REPO_BRANCH}\"\n"
+"#define GIT_COMMIT_CNT ${GIT_REPO_COMMIT_CNT}\n"
+"#define GIT_TIME_ISO   \"${GIT_REPO_TIME_ISO}\"\n"
+"#define GIT_DIRTY      ${GIT_DIRTY}\n"
+"#define GIT_REMOTE     \"${GIT_REPO_REMOTE}\"\n"
+"\n"
+"/* build environment info */\n"
+"#define BUILD_HOST     \"${BUILD_HOST}\"\n"
+"#define BUILD_USER     \"${BUILD_USER}\"\n"
+"#define BUILD_TIME     \"${BUILD_TIME}\"\n"
+"#define BUILD_OS       \"${BUILD_OS}\"\n"
+"#define BUILD_COMPILER \"${BUILD_COMPILER}\"\n"
+"#define BUILD_TYPE     \"${BUILD_TYPE}\"\n"
+"\n"
+"#endif /* __GIT_VERSION_H__ */\n"
 )
 # 包含引用目录，源文件可以直接用 #include "git_version.h" 包含
 INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR})

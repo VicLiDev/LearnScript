@@ -40,6 +40,18 @@ int main(int argc, char* argv[])
     printf("author:  %s\n", GIT_AUTHOR);
     printf("date:    %s\n", GIT_DATE);
     printf("hash:    %s\n", GIT_HASH);
+    printf("branch:  %s\n", GIT_BRANCH);
+    printf("commits: %d\n", GIT_COMMIT_CNT);
+    printf("time:    %s\n", GIT_TIME_ISO);
+    printf("dirty:   %s\n", GIT_DIRTY ? "yes" : "no");
+    printf("remote:  %s\n", GIT_REMOTE);
+    printf("-- build info --\n");
+    printf("host:     %s\n", BUILD_HOST);
+    printf("user:     %s\n", BUILD_USER);
+    printf("built:    %s\n", BUILD_TIME);
+    printf("os:       %s\n", BUILD_OS);
+    printf("compiler: %s\n", BUILD_COMPILER);
+    printf("type:     %s\n", BUILD_TYPE);
     printf("\n");
     printf("git version method 2\n");
     printf("ver_log: %s\n", VER_INFO);
