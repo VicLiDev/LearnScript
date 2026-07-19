@@ -667,6 +667,8 @@ EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --oneline --date=short --pretty
 
 if (NOT EXEC_RET)
     SET(VERSION_LOG ${EXEC_OUT})
+    # 先转义反斜杠再转义双引号，否则 subject 里的 \e 会被 C 编译器当成转义字节
+    STRING(REPLACE "\\" "\\\\" VERSION_LOG ${VERSION_LOG})
     STRING(REPLACE "\"" "\\\"" VERSION_LOG ${VERSION_LOG})
     MESSAGE(STATUS "git version: " ${VERSION_LOG})
     SET(VERSION_HISTORY "\"${VERSION_LOG}\"")
@@ -706,6 +708,8 @@ IF(EXISTS "${PROJECT_SOURCE_DIR}/../../.git")
             SET(VERSION_INFO ${EXEC_OUT})
             MESSAGE(STATUS "current version:")
             MESSAGE(STATUS "${VERSION_INFO}")
+            # 先转义反斜杠再转义双引号，否则 subject 里的 \e 会被 C 编译器当成转义字节
+            STRING(REPLACE "\\" "\\\\" VERSION_INFO ${VERSION_INFO})
             STRING(REPLACE "\"" "\\\"" VERSION_INFO ${VERSION_INFO})
             SET(VERSION_INFO "\"${VERSION_INFO}\"")
         ELSE(NOT EXEC_RET)
@@ -729,6 +733,8 @@ IF(EXISTS "${PROJECT_SOURCE_DIR}/../../.git")
 
             IF(NOT EXEC_RET)
                 SET(VERSION_LOG ${EXEC_OUT})
+                # 先转义反斜杠再转义双引号，否则 subject 里的 \e 会被 C 编译器当成转义字节
+                STRING(REPLACE "\\" "\\\\" VERSION_LOG ${VERSION_LOG})
                 STRING(REPLACE "\"" "\\\"" VERSION_LOG ${VERSION_LOG})
                 MESSAGE(STATUS ${VERSION_LOG})
                 SET(VERSION_HISTORY_${CNT} "\"${VERSION_LOG}\"")
