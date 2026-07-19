@@ -87,7 +87,7 @@ MESSAGE(STATUS "current time: ${current_time}")
 # SEND_ERROR:         CMake错误，继续处理，但跳过生成。
 # WARNING:            CMake警告，继续处理。
 # AUTHOR_WARNING:     CMake警告（dev），继续处理。
-# DEPRECATION:        如果分别启用了变量CMAKE_ERROR_DEPRECATED 或 
+# DEPRECATION:        如果分别启用了变量CMAKE_ERROR_DEPRECATED 或
 #                     CMAKE_WARN_DEPRECATED，则CMake弃用错误或警告，否则没有消息。
 # (none) or NOTICE:   打印到stderr的重要消息以吸引用户的注意。
 # STATUS:             项目用户可能会感兴趣的主要有趣消息。理想情况下，这些消息
@@ -579,7 +579,7 @@ MESSAGE(STATUS "    USE_MYMATH is: " ${USE_MYMATH})
 if (USE_MYMATH)
     MESSAGE(STATUS "    USE_MYMATH is valid")
     # 这里关闭是因为在 config.h.in 中有定义，正常添加宏定义是需要打开的
-    # ADD_DEFINITIONS(-DUSE_MYMATH)  
+    # ADD_DEFINITIONS(-DUSE_MYMATH)
     INCLUDE_DIRECTORIES ("${PROJECT_SOURCE_DIR}/src/math")
     ADD_SUBDIRECTORY (src/math)
     SET (EXTRA_LIBS ${EXTRA_LIBS} mathFunctions)
@@ -605,32 +605,46 @@ endif (USE_MYMATH)
 # )
 
 #-- ver 1 直接由CMake写文件
-FIND_PACKAGE(Git)
-# 生成版本描述字符串类似 TAG-X-gHASH
-EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} describe --abbrev=6 --dirty --always --tags
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE  GIT_REPO_VERSION
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+# 先给字段设默认值，git 不可用时也能生成可用的头文件
+SET(GIT_REPO_VERSION "unknown")
+SET(GIT_REPO_AUTHOR  "unknown")
+SET(GIT_REPO_DATE    "unknown")
+SET(GIT_REPO_HASH    "unknown")
 
-# 获取最新提交作者
-EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%an
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE  GIT_REPO_AUTHOR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-# 获取最新 commit 日期，YYYY-MM-DD
-EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%cd --date=short
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE  GIT_REPO_DATE
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-# 获取最新 commit Hash
-EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%H
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE  GIT_REPO_HASH
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
+# 必须先确认找到 git 再使用 GIT_EXECUTABLE，否则命令会失败
+FIND_PACKAGE(Git)
+# find_package(Git) 成功后会自动设置 GIT_FOUND / GIT_EXECUTABLE / GIT_VERSION_STRING
+MESSAGE(STATUS "find_package(Git):")
+MESSAGE(STATUS "    GIT_FOUND          = [${GIT_FOUND}]")
+MESSAGE(STATUS "    GIT_EXECUTABLE     = [${GIT_EXECUTABLE}]")
+MESSAGE(STATUS "    GIT_VERSION_STRING = [${GIT_VERSION_STRING}]")
+IF(GIT_FOUND)
+    # 生成版本描述字符串类似 TAG-X-gHASH
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} describe --abbrev=6 --dirty --always --tags
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取最新提交作者
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%an
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_AUTHOR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取最新 commit 日期，YYYY-MM-DD
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%cd --date=short
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_DATE
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    # 获取最新 commit Hash
+    EXECUTE_PROCESS(COMMAND ${GIT_EXECUTABLE} log -1 --format=%H
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        OUTPUT_VARIABLE  GIT_REPO_HASH
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+ENDIF()
+
 # 写入头文件宏定义的版本字符串，日期和 Hash
 FILE(WRITE ${PROJECT_BINARY_DIR}/git_version.h
     "#define GIT_VER \"${GIT_REPO_VERSION}\"\n#define GIT_AUTHOR \"${GIT_REPO_AUTHOR}\"\n#define GIT_DATE \"${GIT_REPO_DATE}\"\n#define GIT_HASH \"${GIT_REPO_HASH}\"\n"
@@ -675,7 +689,7 @@ FOREACH(CNT RANGE ${VERSION_MAX_CNT})
 ENDFOREACH(CNT)
 
 IF(EXISTS "${PROJECT_SOURCE_DIR}/../../.git")
-    find_package(Git)
+    FIND_PACKAGE(Git)
     IF(GIT_FOUND)
         # get current version info
         SET(GIT_LOG_FORMAT "%h author: %<|(30)%an %cd %s")
@@ -1002,7 +1016,7 @@ ADD_SUBDIRECTORY(src)
 # 例如 DESTINATION bin 表示 ${CMAKE_INSTALL_PREFIX}/bin，但是如果 bin 以 / 开头就表示绝对路径，
 # 变量 CMAKE_INSTALL_PREFIX 就不起作用了
 
-# 变量 CMAKE_INSTALL_PREFIX 可以在编译的时候进行控制，例如: cmake -DCMAKE_INSTALL_PREFIX=. .. 
+# 变量 CMAKE_INSTALL_PREFIX 可以在编译的时候进行控制，例如: cmake -DCMAKE_INSTALL_PREFIX=. ..
 # 或 cmake -DCMAKE_INSTALL_PREFIX=$PWD ..
 MESSAGE(STATUS "    CMAKE_INSTALL_PREFIX: " ${CMAKE_INSTALL_PREFIX})
 # 指定 mathFunctions 库的安装路径
@@ -1048,7 +1062,7 @@ INSTALL(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 # find_packet()的用法:
 # find_packet()有两种模式，Module模式和Config模式，其中Module模式是基础用法，Config模式较为复杂。
 # Module模式下，如果按照用户指定的配置找不到包，主会自动进入Config模式
-# 
+#
 # - Module模式:
 # find_package(<PackageName> [version] [EXACT] [QUIET] [MODULE] [REQUIRED]
 #              [[COMPONENTS] [components...]] [OPTIONAL_COMPONENTS components...]
@@ -1061,7 +1075,7 @@ INSTALL(FILES "${PROJECT_BINARY_DIR}/config.h" DESTINATION include)
 #   REQUIRED 表示一定要找到包，如果失败则停止cmake
 #   COMPONENTS components 表示一定要找到组件，如果失败则停止cmake
 #   OPTIONAL_COMPONENTS components 表示找不到组件，也继续执行cmake
-# 
+#
 # 查找顺序：Module 模式下查找名为 Find<PackageName>.cmake 的文件，
 #     先在 CMAKE_MODULE_PATH 变量对应的路径下查找，如果路径为空或者查找失败，
 #     则在 cmake 安装时的module目录下查找，如：/usr/lib/x86_64-linux-gnu/cmake
@@ -1176,7 +1190,7 @@ set_tests_properties (test_2_10
 #     set_tests_properties (test_${arg1}_${arg2}
 #         PROPERTIES PASS_REGULAR_EXPRESSION ${result})
 # endmacro (do_test)
- 
+
 # 使用该宏进行一系列的数据测试
 # do_test (5 2 "is 25")
 # do_test (10 5 "is 100000")
@@ -1190,14 +1204,14 @@ set_tests_properties (test_2_10
 # =============================================================================
 # 构建一个 CPack 安装包
 # include(<file|module> [OPTIONAL] [RESULT_VARIABLE <var>] [NO_POLICY_SCOPE])
-# Loads and runs CMake code from the file given. Variable reads and writes access the scope of the 
-# caller (dynamic scoping). If OPTIONAL is present, then no error is raised if the file does not exist. 
-# If RESULT_VARIABLE is given the variable <var> will be set to the full filename which has been 
+# Loads and runs CMake code from the file given. Variable reads and writes access the scope of the
+# caller (dynamic scoping). If OPTIONAL is present, then no error is raised if the file does not exist.
+# If RESULT_VARIABLE is given the variable <var> will be set to the full filename which has been
 # included or NOTFOUND if it failed.
 
-# If a module is specified instead of a file, the file with name <modulename>.cmake is searched first in 
-# CMAKE_MODULE_PATH, then in the CMake module directory. There is one exception to this: if the file which 
-# calls include() is located itself in the CMake builtin module directory, then first the CMake builtin 
+# If a module is specified instead of a file, the file with name <modulename>.cmake is searched first in
+# CMAKE_MODULE_PATH, then in the CMake module directory. There is one exception to this: if the file which
+# calls include() is located itself in the CMake builtin module directory, then first the CMake builtin
 # module directory is searched and CMAKE_MODULE_PATH afterwards. See also policy CMP0017.
 
 # See the cmake_policy() command documentation for discussion of the NO_POLICY_SCOPE option.
