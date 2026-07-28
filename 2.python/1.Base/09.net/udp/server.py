@@ -1,40 +1,68 @@
-#!/bin/python3
+#!/usr/bin/env python3
 #########################################################################
-# File Name: server.py
-# Author: LiHongjin
-# mail: 872648180@qq.com
-# Created Time: Sun Sep 17 14:52:48 2023
+# UDP Echo 服务器
+#
+# UDP 与 TCP 的核心区别：
+#   - 无连接：不需要 listen/accept，bind 后直接 recvfrom
+#   - 面向消息：recvfrom 返回完整数据报，保留消息边界
+#   - 不可靠：数据可能丢失、乱序、重复（但本 demo 在本地测试不受影响）
+#   - recvfrom 返回 (data, addr)，addr 可用于 sendto 回复
 #########################################################################
 
-import time
 import socket
+import signal
+
 
 def main():
-    # 1.创建一个udp套接字
-    # 数据报格式套接字（Datagram Sockets）也叫“无连接的套接字”，在代码中使用 SOCK_DGRAM 表示。
+    host = "0.0.0.0"
+    port = 30000
+
+    # 1. 创建数据报 socket
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # 允许端口重用
+    udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # 2. 绑定地址和端口（UDP 不需要 listen）
+    udp_socket.bind((host, port))
+    # 设置 timeout 配合信号优雅退出：recvfrom() 每 2 秒超时回到循环顶，
+    # 让 Ctrl+C 信号有机会被响应。超时不会丢包，内核收到数据后放入缓冲区
+    udp_socket.settimeout(2.0)
+    print(f"[UDP Server] listening on {host}:{port}")
 
-    # 2.绑定本地的相关信息，如果一个网络程序不绑定，则系统会随机分配
-    # 30000  表示本地的端口 ip一般不用写
-    local_addr = ("", 30000)
-    udp_socket.bind(local_addr)
+    running = True
 
-    while True :
-        # 3. 等待接收对方发送的数据
-        recv_data = udp_socket.recvfrom(1024)
-        # 1024表示本次接收的最大字节数
+    def graceful_shutdown(signum, frame):
+        nonlocal running
+        print("\n[UDP Server] shutting down...")
+        running = False
+        # 关闭 socket 让 recvfrom() 抛出 OSError，循环退出
+        udp_socket.close()
 
-        # 6. 显示对方发送的数据
-        # 接收到的数据recv_data是一个元组
-        # 第1个元素是对方发送的数据
-        # 第2个元素是对方的ip和端口
-        print("recv from {}, data:{}".format(recv_data[1], recv_data[0].decode('gbk')))
+    signal.signal(signal.SIGINT, graceful_shutdown)
+    signal.signal(signal.SIGTERM, graceful_shutdown)
 
-        if recv_data[0].decode('gbk') == "quit" :
+    # 3. 主循环：接收并回显数据报
+    while running:
+        try:
+            # recvfrom 返回 (数据, 发送方地址)
+            recv_data, client_addr = udp_socket.recvfrom(1024)
+        except socket.timeout:
+            continue  # 超时后继续等待
+        except OSError:
+            break  # socket 已关闭
+
+        data_str = recv_data.decode("utf-8")
+        print(f"  recv from {client_addr}: {data_str.strip()}")
+
+        if data_str.strip() == "quit":
+            print("[UDP Server] received quit, shutting down...")
             break
 
-    # 3.关闭套接字
+        # 4. 原样回显给发送方
+        # 注意：UDP 不需要对方事先建立连接，直接用 sendto 发送
+        udp_socket.sendto(recv_data, client_addr)
+
     udp_socket.close()
+    print("[UDP Server] closed")
 
 
 if __name__ == "__main__":

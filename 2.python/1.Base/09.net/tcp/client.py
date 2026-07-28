@@ -1,29 +1,66 @@
-#!/bin/python3
+#!/usr/bin/env python3
 #########################################################################
-# File Name: client.py
-# Author: LiHongjin
-# mail: 872648180@qq.com
-# Created Time: Sat Sep 16 11:47:07 2023
+# TCP Echo Client
+#
+# 流程：
+#   1. 创建 socket → connect 到服务器
+#   2. 循环：从键盘读入 → send 发送 → recv 接收回显 → 打印
+#   3. 输入 "quit" 退出
 #########################################################################
 
 import socket
 
-# 1.创建socket
-# 流格式套接字（Stream Sockets）也叫“面向连接的套接字”，在代码中使用 SOCK_STREAM 表示。
-tcp_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# 2. 链接服务器
-server_addr = ("127.0.0.1", 8080)
-tcp_socket.connect(server_addr)
+def main():
+    server_addr = ("127.0.0.1", 18080)
+    # 1. 创建 TCP socket
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-# 3. 发送数据
-while True :
-    send_data = input("Enter string to send：")
-    if send_data == "quit" :
-        break
-    tcp_socket.send(send_data.encode("gbk"))
-    recv_data = tcp_socket.recv(1024)
-    print("from server: %s" % recv_data.decode("gbk"))
+    # 2. 连接到服务器（三次握手）
+    try:
+        client_socket.connect(server_addr)
+        print(f"[TCP Client] connected to {server_addr}")
+    except ConnectionRefusedError:
+        # 服务器未启动或端口不对
+        print(f"[TCP Client] server {server_addr} refused connection")
+        return
+    except Exception as e:
+        print(f"[TCP Client] connect failed: {e}")
+        return
 
-# 4. 关闭套接字
-tcp_socket.close()
+    try:
+        # 3. 收发循环
+        while True:
+            try:
+                send_data = input("Enter string to send: ")
+            except (EOFError, KeyboardInterrupt):
+                # EOF: 管道输入结束或 Ctrl+D
+                # KeyboardInterrupt: Ctrl+C
+                print("\n[TCP Client] exiting...")
+                break
+
+            if send_data == "quit":
+                break
+
+            try:
+                # 发送数据（编码为 utf-8 字节）
+                client_socket.send(send_data.encode("utf-8"))
+                # 接收服务器回显
+                recv_data = client_socket.recv(1024)
+                print(f"  from server: {recv_data.decode('utf-8')}")
+            except ConnectionResetError:
+                # 服务器主动断开连接
+                print("[TCP Client] server reset connection")
+                break
+            except ConnectionAbortedError:
+                # 本机主动中止连接
+                print("[TCP Client] connection aborted")
+                break
+    finally:
+        # 4. 关闭 socket，发送 FIN 包（四次挥手）
+        client_socket.close()
+        print("[TCP Client] closed")
+
+
+if __name__ == "__main__":
+    main()
