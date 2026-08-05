@@ -1,7 +1,7 @@
-#!/opt/homebrew/anaconda3/bin/bash
+#!/usr/bin/env bash
 #########################################################################
 # File Name: echo_color.sh
-# Author: LiHongjin
+# Author: Hongjin Li
 # mail: 872648180@qq.com
 # Created Time: Thu Nov 30 17:03:08 2023
 #########################################################################
@@ -47,3 +47,22 @@ printf "\033[0m\033[1;34m hello world \033[0m\n"
 printf "\033[0m\033[1;35m hello world \033[0m\n"
 printf "\033[0m\033[1;36m hello world \033[0m\n"
 printf "\033[0m\033[1;37m hello world \033[0m\n"
+
+
+echo "==> 日志分级函数"
+
+# 日志分级函数: 常用于部署/构建脚本, 颜色 + 等宽前缀区分信息级别
+# (deploy.sh 同款写法: 前缀宽度一致, 多行日志对齐美观)
+# 注意: 输出重定向到文件/管道时 ANSI 码会污染内容,
+#       需要落日志的场景可用 [ -t 1 ] 判断是否终端再决定是否上色
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+CYAN='\033[0;36m'; NC='\033[0m'
+info()  { echo -e "${CYAN}[ info ]${NC} $*"; }
+ok()    { echo -e "${GREEN}[  ok  ]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[ WARN ]${NC} $*"; }
+err()   { echo -e "${RED}[ FAIL ]${NC} $*"; }
+
+info "hello world"
+ok "hello world"
+warn "hello world"
+err "hello world"
