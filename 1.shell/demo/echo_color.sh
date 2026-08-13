@@ -66,3 +66,44 @@ info "hello world"
 ok "hello world"
 warn "hello world"
 err "hello world"
+
+
+echo ""
+echo "==> 日志函数族 (带日志文件落盘 + 静默模式)"
+echo "==> log file: /tmp/echo_color_demo.log"
+
+# 日志函数族: 统一处理 着色/落盘/级别/静默/调试, 常用于验证/构建脚本
+# (rk_dec_verify.sh 同款写法)
+#
+# 设计要点:
+#   1. 颜色: 1;3x 高亮色, 每条消息完整包裹着色串, 打印完立即恢复, 无残留
+#   2. 落盘: tee -a 同时写日志文件, 终端看到什么文件里就是什么
+#   3. 分流: 常规日志走 stderr (>&2), 防止被 $(...) 命令替换吞掉;
+#            log_summary 走 stdout, 作为脚本对外输出结果
+#   4. 门控: q_gate 静默模式整体禁用常规日志; log_dbg 仅在 verbose 下输出
+RED="\033[1;31m"; GREEN="\033[1;32m"; YELLOW="\033[1;33m"; NC="\033[0m"
+log_file="/tmp/echo_color_demo.log"
+
+function q_gate()      { [ "${cmd_quiet}" = "1" ] && return 1; return 0; }
+function log_line()    { q_gate || return; echo -e "$*" | tee -a "${log_file}" >&2; }
+function log()         { q_gate || return; echo "$*" | tee -a "${log_file}" >&2; }
+function log_dbg()     { [ "${cmd_verbose}" = "1" ] && log "$*"; }
+function log_pass()    { log_line "${GREEN}[PASS] $*${NC}"; }
+function log_fail()    { log_line "${RED}[FAIL] $*${NC}"; }
+function log_warn()    { log_line "${YELLOW}[WARN] $*${NC}"; }
+function log_summary() { echo -e "$*" >>"${log_file}"; echo -e "$*"; }
+
+log "normal line"
+log_pass "decode ok"
+log_fail "decode failed"
+log_warn "frame count mismatch"
+cmd_verbose=1
+log_dbg "debug line (verbose only)"
+log_summary "summary line (stdout)"
+
+echo "==> quiet mode (常规日志静默, summary 不受影响)"
+cmd_quiet=1
+log "this line is suppressed"
+log_summary "summary still visible"
+
+rm -f "${log_file}"
